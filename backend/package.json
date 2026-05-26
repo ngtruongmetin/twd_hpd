@@ -13,7 +13,7 @@
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "sqlite3": "^6.0.1",
