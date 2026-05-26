@@ -31,7 +31,16 @@ class AuthController {
                 message: "Lỗi không thể truy vấn"
             });
 
-            if ((await bcrypt.compare(password, row.PasswordHash))) console.log(1);
+            if ((await bcrypt.compare(password, row.PasswordHash))) {
+                let data = {
+                    success: true,
+                    message: "Đăng nhập thành công",
+                    data: row
+                }
+                delete data.data.PasswordHash;
+                req.body.user = data.data;
+                return res.status(200).json(data);
+            }
 
             if (row) return res.status(200).json({
                 success: true,
@@ -50,17 +59,5 @@ class AuthController {
     }
 }
 
-AuthController.Login({
-    body: {
-        username: "baovn1179",
-        password: "JSCoder20082"
-    }
-}, {
-    status: function(e) {
-        return {
-            json: () => {}
-        }
-    }
-});
 
 module.exports = AuthController;
