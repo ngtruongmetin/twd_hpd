@@ -25,7 +25,6 @@ class AuthController {
         Where Username = ?`;
 
         db.get(sql, [username], async (err, row) => {
-            console.log(err);
             if (err) return res.status(500).json({
                 success: false,
                 message: "Lỗi không thể truy vấn"
@@ -42,11 +41,11 @@ class AuthController {
                 return res.status(200).json(data);
             }
 
-            if (row) return res.status(200).json({
-                success: true,
-                message: "Truy vấn thành công",
-                data: row
-            })
+            return res.status(404).json({
+                success: false,
+                message: "Đăng nhập không thành công, username hoặc mật khẩu đã sai"
+            });
+            
 
         });
 
