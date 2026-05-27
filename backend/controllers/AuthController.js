@@ -81,10 +81,10 @@ class AuthController {
             role_id
         } = req.body;
 
-        if (!username || !password || !full_name) {
+        if (!username || !password || !full_name || !email) {
             return res.status(400).json({
                 success: false,
-                message: "username, password và full_name là bắt buộc"
+                message: "username, password, email và full_name là bắt buộc"
             });
         }
 
