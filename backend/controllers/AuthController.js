@@ -13,22 +13,24 @@ class AuthController {
             });
         }
 
-        let sql = `Select 
-        Users.Username, 
-        Users.FullName, 
-        Users.Address, 
-        Users.SchoolName, 
-        Users.WardName, 
-        Users.ProvinceName, 
-        Users.OrganizationPosition, 
-        Users.Phone, 
-        Users.Email, 
-        Users.WorkUnit, 
-        Roles.RoleName,
-        Users.PasswordHash
-        From Users 
-        Inner Join Roles On Roles.RoleID = Users.RoleID 
-        Where Username = ?`;
+        let sql = `SELECT 
+        users.id,
+        users.username, 
+        users.full_name, 
+        users.school_name, 
+        users.ward_name, 
+        users.province_name, 
+        users.organization_position, 
+        users.phone, 
+        users.email, 
+        users.work_unit,
+        users.province_code,
+        roles.code as role_code,
+        roles.name as role_name,
+        users.password_hash
+        FROM users 
+        INNER JOIN roles ON roles.id = users.role_id 
+        WHERE username = $1`;
 
         db.get(sql, [username], async (err, row) => {
             if (err) {
@@ -45,13 +47,13 @@ class AuthController {
                 });
             }
 
-            if (await bcrypt.compare(password, row.PasswordHash)) {
+            if (await bcrypt.compare(password, row.password_hash)) {
                 let data = {
                     success: true,
                     message: "Đăng nhập thành công",
                     data: row
                 };
-                delete data.data.PasswordHash;
+                delete data.data.password_hash;
                 req.body.user = data.data;
                 return res.status(200).json(data);
             }
@@ -67,28 +69,28 @@ class AuthController {
         let {
             username,
             password,
-            fullName,
-            address,
-            schoolName,
-            wardName,
-            provinceName,
-            organizationPosition,
+            full_name,
+            school_name,
+            ward_name,
+            province_name,
+            province_code,
+            organization_position,
             phone,
             email,
-            workUnit,
-            roleID
+            work_unit,
+            role_id
         } = req.body;
 
-        if (!username || !password || !fullName) {
+        if (!username || !password || !full_name) {
             return res.status(400).json({
                 success: false,
-                message: "username, password và fullName là bắt buộc"
+                message: "username, password và full_name là bắt buộc"
             });
         }
 
-        roleID = roleID || 4; // default: Thí sinh
+        role_id = role_id || 4; // default: Thí sinh
 
-        const checkSql = `Select Username, Email from Users where Username = ? OR Email = ?`;
+        const checkSql = `SELECT username, email FROM users WHERE username = $1 OR email = $2`;
         db.get(checkSql, [username, email], async (err, existingUser) => {
             if (err) {
                 return res.status(500).json({
@@ -99,11 +101,11 @@ class AuthController {
 
             if (existingUser) {
                 let message = "Username hoặc email đã tồn tại";
-                if (existingUser.Username === username && existingUser.Email === email) {
+                if (existingUser.username === username && existingUser.email === email) {
                     message = "Username và email đã được sử dụng";
-                } else if (existingUser.Username === username) {
+                } else if (existingUser.username === username) {
                     message = "Username đã tồn tại";
-                } else if (existingUser.Email === email) {
+                } else if (existingUser.email === email) {
                     message = "Email đã tồn tại";
                 }
                 return res.status(400).json({
@@ -113,26 +115,30 @@ class AuthController {
             }
 
             const passwordHash = await bcrypt.hash(password, 10);
-            const insertSql = `Insert Into Users (Username, PasswordHash, FullName, Address, SchoolName, WardName, ProvinceName, OrganizationPosition, Phone, Email, WorkUnit, RoleID) Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            const insertSql = `INSERT INTO users 
+            (username, password_hash, full_name, school_name, ward_name, province_name, province_code, organization_position, phone, email, work_unit, role_id, account_source, status) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
 
             db.run(insertSql, [
                 username,
                 passwordHash,
-                fullName,
-                address || null,
-                schoolName || null,
-                wardName || null,
-                provinceName || null,
-                organizationPosition || null,
+                full_name,
+                school_name || null,
+                ward_name || null,
+                province_name || null,
+                province_code || null,
+                organization_position || null,
                 phone || null,
-                email || null,
-                workUnit || null,
-                roleID
+                email,
+                work_unit || null,
+                role_id,
+                'SELF_REGISTERED',
+                'ACTIVE'
             ], function (insertErr) {
                 if (insertErr) {
                     let message = "Đăng ký không thành công";
-                    if (insertErr.message && insertErr.message.includes("UNIQUE constraint failed: Users.Email")) {
-                        message = "Email đã tồn tại";
+                    if (insertErr.message && insertErr.message.includes("unique")) {
+                        message = "Email hoặc username đã tồn tại";
                     }
                     return res.status(500).json({
                         success: false,
@@ -145,8 +151,8 @@ class AuthController {
                     message: "Đăng ký thành công",
                     data: {
                         username,
-                        fullName,
-                        roleID
+                        full_name,
+                        role_id
                     }
                 });
             });
