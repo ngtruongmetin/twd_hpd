@@ -1,0 +1,331 @@
+﻿Project TWD_HPD_2026 {
+  database_type: "PostgreSQL"
+  Note: '''
+  Schema cho hệ thống nộp bài và chấm thi cuộc thi "Nhật ký Hoa phượng đỏ - Trải nghiệm để trưởng thành".
+  Có thể dùng cho SQLite/MySQL/PostgreSQL, nhưng kiểu dữ liệu đang tối ưu theo PostgreSQL.
+  '''
+}
+
+Enum account_source {
+  ADMIN_CREATED
+  SELF_REGISTERED
+}
+
+Enum user_status {
+  ACTIVEx
+  INACTIVE
+  LOCKED
+}
+
+Enum season_status {
+  DRAFT
+  OPEN_SUBMISSION
+  CLOSED_SUBMISSION
+  JUDGING
+  ANNOUNCED
+  ARCHIVED
+}
+
+Enum participant_type {
+  INDIVIDUAL
+  TEAM
+}
+
+Enum submission_status {
+  DRAFT
+  SUBMITTED
+  QUALIFIED
+  REJECTED
+  PUBLISHED_FOR_VOTING
+  JUDGED
+  FINALIZED
+}
+
+Enum score_source {
+  JUDGE
+  VOTE_CONVERTED
+  BONUS
+}
+
+Enum award_scope {
+  INDIVIDUAL
+  TEAM
+}
+
+Table roles {
+  id int [pk, increment]
+  code varchar(50) [not null, unique] // TECH_ADMIN, TW_ADMIN, PROVINCE_ADMIN, CONTESTANT, JUDGE
+  name varchar(150) [not null]
+}
+
+Table users {
+  id bigserial [pk]
+  username varchar(80) [not null, unique]
+  password_hash varchar(255) [not null]
+  full_name varchar(150) [not null]
+  email varchar(190) [not null, unique]
+  phone varchar(30)
+
+  province_code varchar(20)
+  province_name varchar(150)
+  ward_name varchar(150)
+  school_name varchar(200)
+  work_unit varchar(200)
+  organization_position varchar(150)
+
+  role_id int [not null, ref: > roles.id]
+  account_source account_source [not null]
+  status user_status [not null, default: 'ACTIVE']
+  email_verified_at timestamptz
+
+  created_by bigint [ref: > users.id] // null nếu self-register
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    role_id
+    province_code
+    (full_name, email)
+  }
+}
+
+Table seasons {
+  id bigserial [pk]
+  code varchar(30) [not null, unique] // HPR_2026
+  name varchar(255) [not null]
+  description text
+
+  submission_open_at timestamptz
+  submission_close_at timestamptz
+  screening_open_at timestamptz
+  screening_close_at timestamptz
+  voting_open_at timestamptz
+  voting_close_at timestamptz
+  top5_announce_at timestamptz // 2026-08-16
+  final_announce_at timestamptz
+
+  status season_status [not null, default: 'DRAFT']
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table competition_tables {
+  id bigserial [pk]
+  season_id bigint [not null, ref: > seasons.id]
+  code varchar(30) [not null] // CAPCUT_NHAT_KY_HA_DO, KE_CHUYEN_HA_DO_TRUONG_THANH
+  name varchar(255) [not null]
+  description text
+  max_submissions_per_participant int [not null, default: 3]
+  max_video_seconds int
+  min_video_quality varchar(50) // >=720p
+  required_aspect_ratio varchar(20) // 16:9 (nếu có)
+
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (season_id, code) [unique]
+  }
+}
+
+Table teams {
+  id bigserial [pk]
+  season_id bigint [not null, ref: > seasons.id]
+  name varchar(255) [not null]
+  participant_type participant_type [not null] // INDIVIDUAL hoặc TEAM
+
+  province_name varchar(150)
+  ward_name varchar(150)
+  school_name varchar(200)
+
+  created_by_user_id bigint [not null, ref: > users.id] // thí sinh đại diện
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    season_id
+    created_by_user_id
+  }
+}
+
+Table team_members {
+  id bigserial [pk]
+  team_id bigint [not null, ref: > teams.id]
+  full_name varchar(150) [not null]
+  email varchar(190)
+  phone varchar(30)
+  organization_position varchar(150)
+  is_captain bool [not null, default: false]
+
+  Indexes {
+    team_id
+  }
+}
+
+Table submissions {
+  id bigserial [pk]
+  season_id bigint [not null, ref: > seasons.id]
+  competition_table_id bigint [not null, ref: > competition_tables.id]
+  team_id bigint [not null, ref: > teams.id]
+  submitted_by_user_id bigint [not null, ref: > users.id]
+
+  title varchar(255) [not null]
+  description text
+  video_url text [not null]
+  file_name varchar(255)
+  file_ext varchar(20)
+  file_size_bytes bigint
+  duration_seconds int
+  resolution varchar(30)
+  aspect_ratio varchar(20)
+
+  status submission_status [not null, default: 'SUBMITTED']
+  rejection_reason text
+
+  submitted_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'Rule: mỗi team tối đa 03 bài cho mỗi bảng thi. Enforce bằng trigger/service theo (team_id, competition_table_id).'
+
+  Indexes {
+    season_id
+    competition_table_id
+    team_id
+    submitted_by_user_id
+    (season_id, competition_table_id, status)
+  }
+}
+
+Table judge_assignments {
+  id bigserial [pk]
+  season_id bigint [not null, ref: > seasons.id]
+  competition_table_id bigint [not null, ref: > competition_tables.id]
+  judge_user_id bigint [not null, ref: > users.id]
+  assigned_by_user_id bigint [not null, ref: > users.id]
+  assigned_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (competition_table_id, judge_user_id) [unique]
+    season_id
+  }
+}
+
+Table scoring_criteria {
+  id bigserial [pk]
+  competition_table_id bigint [not null, ref: > competition_tables.id]
+  code varchar(50) [not null] // CONTENT, MESSAGE, CREATIVITY, FORMAT, BONUS, VOTE_RESULT
+  name varchar(150) [not null]
+  max_points numeric(6,2) [not null]
+  score_source score_source [not null]
+  is_bonus bool [not null, default: false]
+  sort_order int [not null, default: 1]
+
+  Indexes {
+    (competition_table_id, code) [unique]
+  }
+}
+
+Table judge_scores {
+  id bigserial [pk]
+  submission_id bigint [not null, ref: > submissions.id]
+  judge_user_id bigint [not null, ref: > users.id]
+  criterion_id bigint [not null, ref: > scoring_criteria.id]
+  points numeric(6,2) [not null]
+  comment text
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (submission_id, judge_user_id, criterion_id) [unique]
+    submission_id
+    judge_user_id
+  }
+}
+
+Table voting_snapshots {
+  id bigserial [pk]
+  submission_id bigint [not null, ref: > submissions.id]
+
+  interactions_count int [not null, default: 0]
+  shares_count int [not null, default: 0]
+  raw_vote_points int [not null, default: 0] // interactions + 2*shares
+
+  captured_at timestamptz [not null]
+  source_page_url text
+  proof_image_url text
+  captured_by_user_id bigint [ref: > users.id]
+
+  Indexes {
+    submission_id
+    captured_at
+  }
+}
+
+Table vote_rankings {
+  id bigserial [pk]
+  season_id bigint [not null, ref: > seasons.id]
+  competition_table_id bigint [not null, ref: > competition_tables.id]
+  submission_id bigint [not null, ref: > submissions.id]
+
+  rank_position int [not null]
+  converted_points numeric(6,2) [not null] // Top1=50, Top2=40, Top3=30, Top4=20, Top5=10, còn lại=0
+  calculated_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (competition_table_id, submission_id) [unique]
+    (competition_table_id, rank_position)
+  }
+}
+
+Table submission_results {
+  id bigserial [pk]
+  submission_id bigint [not null, unique, ref: > submissions.id]
+
+  judge_total_points numeric(8,2) [not null, default: 0]
+  vote_converted_points numeric(8,2) [not null, default: 0]
+  bonus_points numeric(8,2) [not null, default: 0]
+  final_points numeric(8,2) [not null, default: 0]
+
+  finalized_at timestamptz
+  finalized_by_user_id bigint [ref: > users.id]
+}
+
+Table awards {
+  id bigserial [pk]
+  season_id bigint [not null, ref: > seasons.id]
+  competition_table_id bigint [not null, ref: > competition_tables.id]
+  name varchar(255) [not null] // Giải nhất/nhì/ba, giải tập thể...
+  award_scope award_scope [not null]
+  unit_level varchar(80) // THPT / XA_PHUONG / TINH_THANH (cho giải tập thể)
+  rank_order int
+
+  Indexes {
+    season_id
+    competition_table_id
+  }
+}
+
+Table award_winners {
+  id bigserial [pk]
+  award_id bigint [not null, ref: > awards.id]
+  submission_id bigint [ref: > submissions.id]
+  team_id bigint [ref: > teams.id]
+  note text
+
+  Indexes {
+    award_id
+  }
+}
+
+Table email_logs {
+  id bigserial [pk]
+  user_id bigint [not null, ref: > users.id]
+  email varchar(190) [not null]
+  template_code varchar(80) [not null] // ACCOUNT_CREATED, SELF_REGISTERED_VERIFY, RESET_PASSWORD...
+  subject varchar(255)
+  status varchar(30) [not null] // PENDING, SENT, FAILED
+  sent_at timestamptz
+  error_message text
+  created_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    user_id
+    status
+  }
+}
