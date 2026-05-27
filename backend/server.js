@@ -11,9 +11,14 @@ app.use(express.json({
 }));
 
 app.use(session({
-    secret: "your-super-secret-key",
-    resave: false,
-    saveUninitialized: false
+  secret: "26031931",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false
+  }
 }));
 
 app.use(
@@ -22,7 +27,12 @@ app.use(
 );
 
 // CORS
-app.use(cors());
+app.use(cors({
+  origin: "*", 
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
