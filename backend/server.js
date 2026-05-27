@@ -1,6 +1,7 @@
 const express = require("express");
 const session = require("express-session");
 const path = require("path");
+const cors = require("cors");
 
 const app = express();
 
@@ -19,9 +20,15 @@ app.use(
     express.static(path.join(__dirname, "assets"))
 );
 
+// CORS
+app.use(cors());
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
-// app.use("/api/auth", require("./modules/auth/routes"));
+app.use("/api/v1/auth", require("./modules/auth/routes"));
+app.use("/api/v1/", require("./modules/users/routes"));
 
 app.get("/", (req, res) => {
     res.send("Server running");
@@ -30,3 +37,7 @@ app.get("/", (req, res) => {
 app.listen(3000, () => {
     console.log("Server running on port 3000");
 });
+
+
+// 404 không tìm thấy API 
+app.use(require("./middlewares/notfound"));
