@@ -2,6 +2,7 @@ const express = require("express");
 const session = require("express-session");
 const path = require("path");
 const cors = require("cors");
+const AuthMiddleware = require("./middlewares/AuthMiddleware");
 
 const app = express();
 
@@ -28,7 +29,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/v1/auth", require("./modules/auth/routes"));
-app.use("/api/v1/", require("./modules/users/routes"));
+app.use("/api/v1/users", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require("./modules/users/routes"));
+app.use("/api/v1/submissions", require("./modules/submission/routes"));
 
 app.get("/", (req, res) => {
     res.send("Server running");

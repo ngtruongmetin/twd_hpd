@@ -10,6 +10,7 @@ class AuthMiddleware {
     }
 
     static IsAdmin(req, res, next) {
+
         const list_perm = ["TECH_ADMIN", "TW_ADMIN", "PROVINCE_ADMIN", "JUDGE"]; // ID các quyền được lưu trong CSDL
         var user = req.session.user;
 
