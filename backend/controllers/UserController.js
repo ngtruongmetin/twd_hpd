@@ -2,6 +2,7 @@ const db = require("../utils/db");
 
 class UserController {
     static async getUser(req, res) {
+        console.log(req.body);
         const sql = `SELECT
             users.id,
             users.username,

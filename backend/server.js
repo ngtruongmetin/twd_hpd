@@ -3,12 +3,15 @@ const session = require("express-session");
 const path = require("path");
 const cors = require("cors");
 const AuthMiddleware = require("./middlewares/AuthMiddleware");
+const bodyparser = require("body-parser");
+const dotenv = require("dotenv");
+dotenv.config();
 
 const app = express();
 
-app.use(express.json({
-  limit: "25mb"
-}));
+app.use(bodyparser.json());
+app.use(bodyparser.urlencoded({ extended: true }));
+
 // CORS
 app.use(cors({
   origin: ["http://localhost:5173"],
@@ -34,14 +37,11 @@ app.use(
 );
 
 
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 // Routes
 app.use("/api/v1/auth", require("./modules/auth/routes"));
 app.use("/api/v1/users", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require("./modules/users/routes"));
 app.use("/api/v1/submissions", AuthMiddleware.IsLogin, require("./modules/submission/routes"));
+app.use("/api/v1/mail", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require("./modules/mail/routes"));
 
 app.get("/", (req, res) => {
   res.send("Server running");
