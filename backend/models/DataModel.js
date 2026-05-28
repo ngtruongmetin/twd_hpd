@@ -9,7 +9,7 @@ class DataModel {
         } = data || {};
 
 
-        if (!sheetName || !fileName || !matrixData) return;
+        if (!sheetName || !fileName || !matrix) return;
 
         const workbook = new ExcelJS.Workbook();
 
@@ -59,13 +59,25 @@ class DataModel {
         */
 
 
-        await workbook.xlsx.writeFile("./thongkenguoithamgia.xlsx");
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
 
-        console.log("Excel created");
+        res.setHeader(
+            "Content-Disposition",
+            'attachment; filename="Thongkecuocthi.xlsx"'
+        );
+
+        
+        await workbook.xlsx.write(res);
+
+        
+        res.end();
     }
 }
 
-DataModel.ExportData(null, null, null);
+
 
 module.exports = DataModel;
 
