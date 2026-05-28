@@ -143,8 +143,10 @@ Các module sau đều dùng cấu trúc cơ bản CRUD:
 ## Quyền hạn và trạng thái
 - 1: `TECH_ADMIN`
 - 2: `TW_ADMIN`
-- 3: `JUDGE`
+- 3: `PROVINCE_ADMIN`
 - 4: `CONTESTANT`
+- 5: `JUDGE`
+
 
 - `ACTIVE`: Hoạt động
 - `INACTIVE`: Không hoạt động
