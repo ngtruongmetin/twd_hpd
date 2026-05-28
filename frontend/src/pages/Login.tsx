@@ -1,9 +1,13 @@
-﻿import { useState, type FormEvent } from 'react'
+import axios from 'axios'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { getDashboardPathForRole } from '../auth/role'
 import { api } from '../api/api'
+import { useAuth } from '../context/useAuth'
 
 export default function Login() {
   const navigate = useNavigate()
+  const { setUser } = useAuth()
   const [form, setForm] = useState({ username: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -13,10 +17,14 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await api.post('/api/v1/auth/login', form)
-      navigate('/')
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
+      const response = await api.post('/api/v1/auth/login', form)
+      const user = response.data?.data ?? null
+      setUser(user)
+      navigate(getDashboardPathForRole(user?.role_code), { replace: true })
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
+        : 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
       setError(msg)
     } finally {
       setLoading(false)
