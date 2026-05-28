@@ -3,7 +3,7 @@ class AuthMiddleware {
         var check = !!req?.session?.user;
         if (check)
             return next();
-        else 
+        else
             return res.json({
                 message: "Bạn chưa đăng nhập"
             });
@@ -14,7 +14,7 @@ class AuthMiddleware {
         const list_perm = ["TECH_ADMIN", "TW_ADMIN", "PROVINCE_ADMIN", "JUDGE"]; // ID các quyền được lưu trong CSDL
         var user = req.session.user;
 
-        if(list_perm.includes(user.role)) return next();
+        if (list_perm.includes(user.role_code)) return next();
         else return res.json({
             message: "Bạn không có đủ thẩm quyền để truy cập tài nguyên này"
         });

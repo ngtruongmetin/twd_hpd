@@ -1,12 +1,22 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { getDashboardPathForRole } from '../auth/role'
+import { useAuth } from '../context/useAuth'
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { user, loading, logout } = useAuth()
 
   function closeMenu() {
     setMenuOpen(false)
   }
+
+  async function handleLogout() {
+    await logout()
+    closeMenu()
+  }
+
+  const dashboardPath = getDashboardPathForRole(user?.role_code)
 
   return (
     <header className="vb-nav">
@@ -18,8 +28,16 @@ export default function Navbar() {
         </div>
 
         <nav className="vb-desktop-nav">
-          <Link to="/login">Đăng nhập</Link>
-          <Link to="/register">Đăng ký</Link>
+          {!loading && user ? (
+            <>
+              <Link to={dashboardPath}>Dashboard</Link>
+              <button type="button" className="vb-nav-action" onClick={handleLogout}>
+                Đăng xuất
+              </button>
+            </>
+          ) : (
+            <Link to="/login">Đăng nhập</Link>
+          )}
         </nav>
 
         <button
@@ -36,8 +54,20 @@ export default function Navbar() {
       </div>
 
       <div className={`vb-mobile-menu ${menuOpen ? 'is-open' : ''}`}>
-        <Link to="/login" onClick={closeMenu}>Đăng nhập</Link>
-        <Link to="/register" onClick={closeMenu}>Đăng ký</Link>
+        {!loading && user ? (
+          <>
+            <Link to={dashboardPath} onClick={closeMenu}>
+              Dashboard
+            </Link>
+            <button type="button" className="vb-mobile-action" onClick={handleLogout}>
+              Đăng xuất
+            </button>
+          </>
+        ) : (
+          <Link to="/login" onClick={closeMenu}>
+            Đăng nhập
+          </Link>
+        )}
       </div>
     </header>
   )

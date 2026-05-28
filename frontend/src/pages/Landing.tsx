@@ -1,7 +1,14 @@
-﻿import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { getDashboardPathForRole } from '../auth/role'
 import Navbar from '../components/Navbar'
+import { useAuth } from '../context/useAuth'
 
 export default function Landing() {
+  const { user, loading } = useAuth()
+  const isLoggedIn = !loading && !!user
+  const actionLabel = isLoggedIn ? 'Truy cập vào Dashboard' : 'Đăng nhập hệ thống'
+  const actionPath = isLoggedIn ? getDashboardPathForRole(user?.role_code) : '/login'
+
   return (
     <main className="vb-page">
       <Navbar />
@@ -13,8 +20,9 @@ export default function Landing() {
           Nền tảng nộp bài dự thi trực tuyến dành cho chiến sĩ Hoa phượng đỏ toàn quốc.
         </p>
         <div className="vb-actions">
-          <Link className="vb-btn vb-btn-primary" to="/login">Đăng nhập hệ thống</Link>
-          <Link className="vb-btn" to="/register">Đăng ký thí sinh</Link>
+          <Link className="vb-btn vb-btn-primary" to={actionPath}>
+            {loading ? 'Đang kiểm tra phiên...' : actionLabel}
+          </Link>
         </div>
       </section>
 
@@ -31,8 +39,9 @@ export default function Landing() {
         </article>
       </section>
 
-
-      <footer className="vb-footer">Hệ thống nộp bài và chấm thi trực tuyến cuộc thi “Nhật ký Hoa phượng đỏ" năm 2026</footer>
+      <footer className="vb-footer">
+        Hệ thống nộp bài và chấm thi trực tuyến cuộc thi “Nhật ký Hoa phượng đỏ" năm 2026
+      </footer>
     </main>
   )
 }
