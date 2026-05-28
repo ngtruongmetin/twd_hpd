@@ -7,7 +7,14 @@ const AuthMiddleware = require("./middlewares/AuthMiddleware");
 const app = express();
 
 app.use(express.json({
-    limit: "25mb"
+  limit: "25mb"
+}));
+// CORS
+app.use(cors({
+  origin: ["http://localhost:5173"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(session({
@@ -22,17 +29,11 @@ app.use(session({
 }));
 
 app.use(
-    "/assets",
-    express.static(path.join(__dirname, "assets"))
+  "/assets",
+  express.static(path.join(__dirname, "assets"))
 );
 
-// CORS
-app.use(cors({
-  origin: "*", 
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -43,11 +44,11 @@ app.use("/api/v1/users", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require
 app.use("/api/v1/submissions", AuthMiddleware.IsLogin, require("./modules/submission/routes"));
 
 app.get("/", (req, res) => {
-    res.send("Server running");
+  res.send("Server running");
 });
 
 app.listen(3000, () => {
-    console.log("Server running on port 3000");
+  console.log("Server running on port 3000");
 });
 
 

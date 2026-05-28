@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -11,15 +12,14 @@ export default function Navbar() {
     <header className="vb-nav">
       <div className="vb-nav-main">
         <div className="vb-brand-wrap">
-          <a href="/" aria-label="Về trang chủ">
+          <Link to="/" aria-label="Về trang chủ">
             <img className="vb-logo" src="/chuhieu.png" alt="Nhật ký Hoa phượng đỏ" />
-          </a>
-
+          </Link>
         </div>
 
         <nav className="vb-desktop-nav">
-
-          <a href="/login">Đăng nhập</a>
+          <Link to="/login">Đăng nhập</Link>
+          <Link to="/register">Đăng ký</Link>
         </nav>
 
         <button
@@ -36,7 +36,8 @@ export default function Navbar() {
       </div>
 
       <div className={`vb-mobile-menu ${menuOpen ? 'is-open' : ''}`}>
-        <a href="/login" onClick={closeMenu}>Đăng nhập</a>
+        <Link to="/login" onClick={closeMenu}>Đăng nhập</Link>
+        <Link to="/register" onClick={closeMenu}>Đăng ký</Link>
       </div>
     </header>
   )

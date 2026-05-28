@@ -54,7 +54,7 @@ class AuthController {
                     data: row
                 };
                 delete data.data.password_hash;
-                req.body.user = data.data;
+                req.session.user = data.data;
                 return res.status(200).json(data);
             }
 
@@ -158,7 +158,41 @@ class AuthController {
             });
         });
     }
+    // Kiểm tra xem người dùng đã đăng nhập chưa
+    static async Me(req, res) {
+        if (!req.session.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Chưa đăng nhập"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: req.session.user
+        });
+    }
+    // Đăng xuất
+    static async Logout(req, res) {
+        req.session.destroy((err) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: "Đăng xuất thất bại"
+                });
+            }
+
+            res.clearCookie("connect.sid");
+
+            return res.status(200).json({
+                success: true,
+                message: "Đăng xuất thành công"
+            });
+        });
+    }
 }
+
+
 
 
 module.exports = AuthController;

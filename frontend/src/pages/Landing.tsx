@@ -1,4 +1,5 @@
-﻿import Navbar from '../components/Navbar'
+﻿import { Link } from 'react-router-dom'
+import Navbar from '../components/Navbar'
 
 export default function Landing() {
   return (
@@ -12,7 +13,8 @@ export default function Landing() {
           Nền tảng nộp bài dự thi trực tuyến dành cho chiến sĩ Hoa phượng đỏ toàn quốc.
         </p>
         <div className="vb-actions">
-          <a className="vb-btn vb-btn-primary" href="/login">Đăng nhập hệ thống</a>
+          <Link className="vb-btn vb-btn-primary" to="/login">Đăng nhập hệ thống</Link>
+          <Link className="vb-btn" to="/register">Đăng ký thí sinh</Link>
         </div>
       </section>
 
@@ -28,7 +30,6 @@ export default function Landing() {
           <p>Video tối đa 05 phút, khung hình 16:9, chất lượng từ 720p.</p>
         </article>
       </section>
-
 
 
       <footer className="vb-footer">Hệ thống nộp bài và chấm thi trực tuyến cuộc thi “Nhật ký Hoa phượng đỏ" năm 2026</footer>
