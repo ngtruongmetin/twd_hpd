@@ -46,6 +46,29 @@ Server chạy trên port `3000`
 - Yêu cầu: Đã đăng nhập + Quyền Admin
 - Response: Thông tin chi tiết người dùng
 
+### /api/v1/users/:username
+- Phương thức: PUT
+- Mô tả: Cập nhật thông tin người dùng theo `username`
+- Yêu cầu: Đã đăng nhập + Quyền Admin
+- Body: JSON chứa các field cần cập nhật, ví dụ `full_name`, `email`, `phone`, `province_code`, `province_name`, `ward_name`, `school_name`, `work_unit`, `organization_position`, `role_id`, `status`
+- Ví dụ body:
+  ```json
+  {
+    "full_name": "Nguyen Van A",
+    "email": "a@example.com",
+    "phone": "0123456789",
+    "role_id": 2,
+    "status": "ACTIVE"
+  }
+  ```
+- Response: `success` + `message`
+
+### /api/v1/users/:username
+- Phương thức: DELETE
+- Mô tả: Xóa người dùng theo `username`
+- Yêu cầu: Đã đăng nhập + Quyền Admin
+- Response: `success` + `message`
+
 ## Submission APIs
 
 ### /api/v1/submissions

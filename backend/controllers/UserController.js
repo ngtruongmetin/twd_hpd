@@ -98,6 +98,68 @@ class UserController {
             });
         });
     }
+
+    static async updateUser(req, res) {
+        const username = req.params.username;
+        const body = req.body || {};
+        const fields = Object.keys(body).filter((key) => key !== "id");
+
+        if (fields.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Vui lòng cung cấp dữ liệu cập nhật"
+            });
+        }
+
+        const assignments = fields.map((key) => `${key} = ?`).join(", ");
+        const values = fields.map((key) => body[key]);
+
+        db.run(`UPDATE users SET ${assignments} WHERE username = ?`, [...values, username], function (err) {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: err.message
+                });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Người dùng không tồn tại"
+                });
+            }
+
+            return res.json({
+                success: true,
+                message: "Cập nhật người dùng thành công"
+            });
+        });
+    }
+
+    static async deleteUser(req, res) {
+        const username = req.params.username;
+
+        db.run(`DELETE FROM users WHERE username = ?`, [username], function (err) {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: err.message
+                });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Người dùng không tồn tại"
+                });
+            }
+
+            return res.json({
+                success: true,
+                message: "Xóa người dùng thành công"
+            });
+        });
+    }
 }
 
 module.exports = UserController;
