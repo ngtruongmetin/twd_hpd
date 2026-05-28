@@ -47,3 +47,13 @@ node server.js
 ```
 Server chạy trên port 3000
 
+### /api/v1/mailer/sendto
+- Phương thức: POST
+- Mô tả: API gửi email 
+- Yêu cầu: Đã đăng nhập bằng quyền Admin 
+
+## Các trường thông tin
+- to_email: Email người nhận 
+- subject: Tiêu đề email 
+- content: Nội dung chính 
+- html: Chèn mã html (Không bắt buộc)

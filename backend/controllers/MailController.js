@@ -40,6 +40,19 @@ class MailController {
         });
 
         console.log("Message sent:", info.messageId);
+
+        if (info.accepted.length > 0) {
+            res.json({
+                success: true,
+                message: "Gửi email thành công"
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: "Gửi email thất bại"
+            });
+        }
+        
     }
 }
 
