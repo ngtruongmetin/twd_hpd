@@ -1,7 +1,7 @@
 ﻿.vb-page {
   min-height: 100vh;
   background: #fafafa;
-  color: #111111;
+  color: #0b2a5b;
   padding: 0 32px 48px;
 }
 
@@ -57,7 +57,7 @@
 
 .vb-desktop-nav a:hover,
 .vb-mobile-menu a:hover {
-  color: #111111;
+  color: #0b2a5b;
 }
 
 .vb-hamburger {
@@ -95,7 +95,7 @@
   line-height: 1.4;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #525252;
+  color: #1d3f78;
 }
 
 .vb-hero {
@@ -156,7 +156,7 @@
 
 .vb-btn-google {
   width: 100%;
-  color: #111111;
+  color: #0b2a5b;
   background: #ffffff;
   border: 2px solid #d4d4d4;
 }
@@ -204,7 +204,7 @@
   margin-top: 24px;
   padding: 16px 0;
   border-top: 1px solid #d4d4d4;
-  color: #525252;
+  color: #1d3f78;
   font-size: 12px;
   font-weight: 500;
   line-height: 1.6;
@@ -234,7 +234,7 @@
 }
 
 .vb-overline-light {
-  color: #525252;
+  color: #1d3f78;
 }
 
 .vb-auth-title {
@@ -317,7 +317,7 @@
 .vb-form-error { color: #ef4444; margin: 0 0 12px; }
 .vb-form-success { color: #16a34a; margin: 0 0 12px; }
 .vb-auth-helper { margin: 10px 0 0; text-align: center; }
-.vb-auth-helper a { color: #111111; font-weight: 700; }
+.vb-auth-helper a { color: #0b2a5b; font-weight: 700; }
 
 @media (max-width: 1280px) {
   .vb-page { padding: 0 24px 40px; }
@@ -388,13 +388,68 @@
   text-align: left;
 }
 
+.vb-selector-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #d4d4d4;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 10px 20px rgba(10, 10, 10, 0.08);
+}
+
+.vb-selector-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #0b2a5b;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 15px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.vb-selector-item + .vb-selector-item {
+  border-top: 1px solid #f5f5f5;
+}
+
+.vb-selector-item:hover,
+.vb-selector-item.is-active {
+  background: #e8f0ff;
+}
+
+.vb-selector-item.is-muted,
+.vb-selector-item.is-error {
+  cursor: default;
+}
+
+.vb-selector-item.is-muted {
+  color: #1d3f78;
+}
+
+.vb-selector-item.is-error {
+  color: #dc2626;
+}
+
+.vb-selector .vb-input:disabled {
+  background: #f5f5f5;
+  color: #5b6b83;
+  cursor: not-allowed;
+}
+
 .vb-float-label {
   position: absolute;
   left: 16px;
-  top: 50%;
+  top: 24px;
   transform: translateY(-50%);
   font-size: 17px;
-  color: #525252;
+  color: #1d3f78;
+  line-height: 1;
   pointer-events: none;
   transition: 0.18s ease;
   background: transparent;
@@ -411,7 +466,7 @@
   transform: translateY(-50%);
   font-size: 13px;
   font-weight: 700;
-  color: #111111;
+  color: #0b2a5b;
   background: #ffffff;
   padding: 0 6px;
 }

@@ -1,6 +1,8 @@
-﻿import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/api'
+import ProvinceSelector, { type ProvinceOption } from '../components/ProvinceSelector'
+import WardSelector, { type WardOption } from '../components/WardSelector'
 
 const INITIAL = {
   username: '',
@@ -8,7 +10,6 @@ const INITIAL = {
   full_name: '',
   email: '',
   phone: '',
-  province_code: '',
   province_name: '',
   ward_name: '',
   school_name: '',
@@ -23,14 +24,26 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [selectedProvince, setSelectedProvince] = useState<ProvinceOption | null>(null)
+  const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
     setSuccess('')
+
+    if (!selectedProvince || !selectedWard) {
+      setError('Vui lòng chọn Tỉnh/Thành phố và Phường/Xã.')
+      return
+    }
+
     setLoading(true)
     try {
-      await api.post('/api/v1/auth/register', form)
+      await api.post('/api/v1/auth/register', {
+        ...form,
+        province_name: selectedProvince.name,
+        ward_name: selectedWard.name,
+      })
       setSuccess('Đăng ký thành công. Bạn có thể đăng nhập ngay.')
       setTimeout(() => navigate('/login'), 1000)
     } catch (err: any) {
@@ -55,12 +68,24 @@ export default function Register() {
             <div className="vb-field"><input id="full_name" className="vb-input" placeholder=" " value={form.full_name} onChange={(e) => setForm((v) => ({ ...v, full_name: e.target.value }))} required /><label className="vb-float-label" htmlFor="full_name">Họ và tên <span className="vb-required">*</span></label></div>
             <div className="vb-field"><input id="email" type="email" className="vb-input" placeholder=" " value={form.email} onChange={(e) => setForm((v) => ({ ...v, email: e.target.value }))} required /><label className="vb-float-label" htmlFor="email">Email <span className="vb-required">*</span></label></div>
             <div className="vb-field"><input id="phone" className="vb-input" placeholder=" " value={form.phone} onChange={(e) => setForm((v) => ({ ...v, phone: e.target.value }))} /><label className="vb-float-label" htmlFor="phone">Số điện thoại</label></div>
-            <div className="vb-field"><input id="province_code" className="vb-input" placeholder=" " value={form.province_code} onChange={(e) => setForm((v) => ({ ...v, province_code: e.target.value }))} /><label className="vb-float-label" htmlFor="province_code">Mã tỉnh/thành</label></div>
-            <div className="vb-field"><input id="province_name" className="vb-input" placeholder=" " value={form.province_name} onChange={(e) => setForm((v) => ({ ...v, province_name: e.target.value }))} /><label className="vb-float-label" htmlFor="province_name">Tỉnh/Thành phố</label></div>
-            <div className="vb-field"><input id="ward_name" className="vb-input" placeholder=" " value={form.ward_name} onChange={(e) => setForm((v) => ({ ...v, ward_name: e.target.value }))} /><label className="vb-float-label" htmlFor="ward_name">Phường/Xã</label></div>
             <div className="vb-field"><input id="school_name" className="vb-input" placeholder=" " value={form.school_name} onChange={(e) => setForm((v) => ({ ...v, school_name: e.target.value }))} /><label className="vb-float-label" htmlFor="school_name">Trường học</label></div>
+
+            <ProvinceSelector
+              value={selectedProvince}
+              onChange={(province) => {
+                setSelectedProvince(province)
+                setSelectedWard(null)
+              }}
+            />
+
+            <WardSelector
+              provinceCode={selectedProvince?.code ?? null}
+              value={selectedWard}
+              onChange={setSelectedWard}
+            />
+
             <div className="vb-field"><input id="work_unit" className="vb-input" placeholder=" " value={form.work_unit} onChange={(e) => setForm((v) => ({ ...v, work_unit: e.target.value }))} /><label className="vb-float-label" htmlFor="work_unit">Đơn vị công tác</label></div>
-            <div className="vb-field vb-full"><input id="organization_position" className="vb-input" placeholder=" " value={form.organization_position} onChange={(e) => setForm((v) => ({ ...v, organization_position: e.target.value }))} /><label className="vb-float-label" htmlFor="organization_position">Chức vụ Đoàn/Hội/Đội</label></div>
+            <div className="vb-field"><input id="organization_position" className="vb-input" placeholder=" " value={form.organization_position} onChange={(e) => setForm((v) => ({ ...v, organization_position: e.target.value }))} /><label className="vb-float-label" htmlFor="organization_position">Chức vụ Đoàn/Hội/Đội</label></div>
           </div>
 
           {error && <p className="vb-form-error">{error}</p>}
