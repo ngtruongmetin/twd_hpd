@@ -41,6 +41,8 @@ class ExportController {
             }
         }
 
+        console.log("Query: ", query);
+
         db.all(query, [], (err, rows) => {
             if (err) {
                 console.error("Error fetching users:", err);

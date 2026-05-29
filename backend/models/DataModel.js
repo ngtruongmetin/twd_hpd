@@ -52,41 +52,18 @@ class DataModel {
             worksheet.addRow(row);
         }
 
-        const headerRow = worksheet.getRow(3);
 
-        headerRow.font = {
-            bold: true,
-            color: {
-                argb: "000000"
-            }
-        };
-
-        headerRow.alignment = {
-            horizontal: "center",
-            vertical: "middle",
-            wrapText: true
-        };
-
-        // Nền vàng
-        headerRow.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: {
-                argb: "FFD966"
-            }
-        };
-
-        // Border header
-        headerRow.eachCell((cell) => {
-
-            cell.border = {
-                top: { style: "thin" },
-                left: { style: "thin" },
-                bottom: { style: "thin" },
-                right: { style: "thin" }
-            };
-
+        worksheet.eachRow((row, rowNumber) => {
+            row.eachCell((cell, colNumber) => {
+                cell.border = { 
+                    top: { style: "thin" },
+                    left: { style: "thin" },
+                    bottom: { style: "thin" },
+                    right: { style: "thin" }
+                };
+            });
         });
+        
         /*
         let data = {
             sheetName: "",
