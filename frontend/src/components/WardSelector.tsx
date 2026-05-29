@@ -29,12 +29,19 @@ export default function WardSelector({ provinceCode, value, onChange }: WardSele
   const [index, setIndex] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const previousProvinceCodeRef = useRef<number | null | undefined>(undefined)
 
   useEffect(() => {
-    onChange(null)
-    setQuery('')
-    setIndex(0)
-    setOpen(false)
+    const isFirstRender = previousProvinceCodeRef.current === undefined
+    const provinceChanged = previousProvinceCodeRef.current !== provinceCode
+    previousProvinceCodeRef.current = provinceCode
+
+    if (!isFirstRender && provinceChanged) {
+      onChange(null)
+      setQuery('')
+      setIndex(0)
+      setOpen(false)
+    }
 
     if (!provinceCode) {
       setOptions([])

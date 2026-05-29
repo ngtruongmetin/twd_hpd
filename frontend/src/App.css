@@ -1156,7 +1156,7 @@
 }
 
 .vb-modal {
-  width: min(860px, 100%);
+  width: min(1040px, 100%);
   max-height: min(88vh, 920px);
   overflow: auto;
   border: 1px solid #0a0a0a;
@@ -1201,34 +1201,67 @@
   border-color: #0a0a0a;
 }
 
-.vb-tab-list {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.vb-modal-body {
+  margin-top: 18px;
+}
+
+.vb-modal-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
   margin-top: 20px;
 }
 
-.vb-tab {
-  border: 1px solid #d4d4d4;
+.vb-modal-main {
+  min-width: 0;
+}
+
+.vb-modal-main {
+  display: grid;
+  gap: 14px;
+}
+
+.vb-modal-form {
+  display: grid;
+  gap: 18px;
+}
+
+.vb-modal-section {
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
   background: #ffffff;
+  padding: 20px;
+}
+
+.vb-modal-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.vb-modal-section-head h3 {
+  margin: 8px 0 0;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.vb-modal-summary h3 {
+  margin: 8px 0 12px;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.vb-modal-summary ul {
+  margin: 0;
+  padding-left: 18px;
   color: #525252;
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 9999px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+  line-height: 1.8;
 }
 
-.vb-tab.is-active {
-  background: #0a0a0a;
-  border-color: #0a0a0a;
-  color: #ffffff;
-}
-
-.vb-modal-body {
-  margin-top: 18px;
+.vb-modal-summary li strong {
+  color: #111111;
 }
 
 .vb-modal-grid {
@@ -1262,11 +1295,28 @@
   word-break: break-word;
 }
 
+.vb-input:disabled {
+  background: #f5f5f5;
+  color: #525252;
+  cursor: not-allowed;
+}
+
 .vb-modal-actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 20px;
+  margin-top: 4px;
+  justify-content: flex-end;
+}
+
+.vb-btn-secondary {
+  color: #111111;
+  background: #ffffff;
+}
+
+.vb-btn-secondary:hover {
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
 @media (max-width: 1280px) {
@@ -1288,6 +1338,15 @@
   .vb-account-workbench {
     grid-template-columns: 1fr;
   }
+
+  .vb-modal-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .vb-modal-section-head {
+    flex-direction: column;
+    align-items: start;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1303,14 +1362,24 @@
   .vb-modal {
     padding: 18px;
     border-radius: 18px;
+    width: min(100%, 100%);
   }
 
   .vb-modal-head {
     flex-direction: column;
   }
 
+  .vb-modal-layout {
+    grid-template-columns: 1fr;
+  }
+
   .vb-modal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .vb-modal-section {
+    padding: 16px;
+    border-radius: 16px;
   }
 }
 

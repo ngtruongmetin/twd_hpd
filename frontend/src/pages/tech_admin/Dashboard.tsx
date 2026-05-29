@@ -73,10 +73,7 @@ export default function TechAdminDashboard() {
               <dt>Role</dt>
               <dd>{user?.role_name || user?.role_code || 'TECH_ADMIN'}</dd>
             </div>
-            <div>
-              <dt>Scope</dt>
-              <dd>Toàn bộ hệ thống</dd>
-            </div>
+
           </dl>
         </aside>
       </section>
