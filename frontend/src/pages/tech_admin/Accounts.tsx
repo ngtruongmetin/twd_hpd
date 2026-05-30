@@ -67,19 +67,7 @@ const statusOptions: { label: string; value: FilterStatus }[] = [
   { label: 'LOCKED', value: 'LOCKED' },
 ]
 
-function formatDate(value: string | null) {
-  if (!value) return 'N/A'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
-}
 
-function formatFallback(value: string | null) {
-  return value || 'N/A'
-}
 
 function buildForm(account: AccountRow | null): AccountForm {
   return {
@@ -110,6 +98,42 @@ export default function Accounts() {
   const [form, setForm] = useState<AccountForm>(buildForm(null))
   const [selectedProvince, setSelectedProvince] = useState<ProvinceOption | null>(null)
   const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
+  const [provinceLookup, setProvinceLookup] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadProvinces() {
+      try {
+        const response = await fetch('https://provinces.open-api.vn/api/v2/p/')
+        if (!response.ok) {
+          return
+        }
+
+        const data = (await response.json()) as ProvinceOption[]
+        if (cancelled) {
+          return
+        }
+
+        const lookup = data.reduce<Record<number, string>>((result, province) => {
+          result[province.code] = province.name
+          return result
+        }, {})
+
+        setProvinceLookup(lookup)
+      } catch {
+        if (!cancelled) {
+          setProvinceLookup({})
+        }
+      }
+    }
+
+    void loadProvinces()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function loadAccounts(selectUsername?: string) {
     setLoading(true)
@@ -132,7 +156,7 @@ export default function Accounts() {
           selectedRow.province_code
             ? {
               code: Number(selectedRow.province_code),
-              name: selectedRow.province_name || '',
+              name: selectedRow.province_name || provinceLookup[Number(selectedRow.province_code)] || '',
             }
             : null,
         )
@@ -189,6 +213,34 @@ export default function Accounts() {
 
   const selectedAccount = filteredAccounts.find((account) => account.id === selectedId) || filteredAccounts[0] || null
 
+  function getProvinceName(account: AccountRow | null) {
+    if (!account) return 'N/A'
+    return account.province_name || (account.province_code ? provinceLookup[Number(account.province_code)] : '') || 'N/A'
+  }
+
+  useEffect(() => {
+    if (!selectedAccount?.province_code) {
+      return
+    }
+
+    const provinceCode = Number(selectedAccount.province_code)
+    const resolvedName = selectedAccount.province_name || provinceLookup[provinceCode] || ''
+    if (!resolvedName) {
+      return
+    }
+
+    setSelectedProvince((current) => {
+      if (current?.code === provinceCode && current.name === resolvedName) {
+        return current
+      }
+
+      return {
+        code: provinceCode,
+        name: resolvedName,
+      }
+    })
+  }, [provinceLookup, selectedAccount])
+
   const stats = useMemo(() => {
     const total = accounts.length
     const activeCount = accounts.filter((account) => account.status === 'ACTIVE').length
@@ -205,7 +257,7 @@ export default function Accounts() {
       account.province_code
         ? {
           code: Number(account.province_code),
-          name: account.province_name || '',
+          name: account.province_name || provinceLookup[Number(account.province_code)] || '',
         }
         : null,
     )
@@ -366,7 +418,6 @@ export default function Accounts() {
                   <th>Role</th>
                   <th>Trạng thái</th>
                   <th>Hồ sơ</th>
-
                 </tr>
               </thead>
               <tbody>
@@ -394,7 +445,7 @@ export default function Accounts() {
                       </div>
                     </td>
                     <td>
-                      <span>{account.province_name || 'N/A'}</span>
+                      <span>{getProvinceName(account)}</span>
                       <span className="vb-cell-sub">{account.school_name || account.work_unit || 'N/A'}</span>
                     </td>
 
@@ -428,7 +479,6 @@ export default function Accounts() {
               <div>
                 <p className="vb-overline">Chỉnh sửa tài khoản</p>
                 <h2 id="account-modal-title">{selectedAccount.full_name}</h2>
-                <p className="vb-modal-sub">{selectedAccount.username}</p>
               </div>
               <button type="button" className="vb-modal-close" onClick={closeDetail}>
                 Đóng
@@ -530,7 +580,7 @@ export default function Accounts() {
                     <div className="vb-modal-section-head">
                       <div>
                         <p className="vb-overline">Địa bàn</p>
-                        <h3>Tỉnh, phường và phạm vi quản lý</h3>
+                        <h3>Tỉnh, thành phố và phường, xã</h3>
                       </div>
                     </div>
 
@@ -592,33 +642,8 @@ export default function Accounts() {
                     </div>
                   </section>
 
-                  <section className="vb-modal-section">
-                    <div className="vb-modal-section-head">
-                      <div>
-                        <p className="vb-overline">Audit</p>
-                        <h3>Thông tin hệ thống</h3>
-                      </div>
-                    </div>
 
-                    <div className="vb-form-grid">
-                      <div className="vb-field">
-                        <input id="account_source" className="vb-input" placeholder=" " value={formatFallback(selectedAccount.account_source)} disabled />
-                        <label className="vb-float-label" htmlFor="account_source">Nguồn tài khoản</label>
-                      </div>
-                      <div className="vb-field">
-                        <input id="created_by" className="vb-input" placeholder=" " value={formatFallback(selectedAccount.created_by)} disabled />
-                        <label className="vb-float-label" htmlFor="created_by">Tạo bởi</label>
-                      </div>
-                      <div className="vb-field">
-                        <input id="email_verified_at" className="vb-input" placeholder=" " value={formatDate(selectedAccount.email_verified_at)} disabled />
-                        <label className="vb-float-label" htmlFor="email_verified_at">Email verified</label>
-                      </div>
-                      <div className="vb-field">
-                        <input id="updated_at" className="vb-input" placeholder=" " value={formatDate(selectedAccount.updated_at)} disabled />
-                        <label className="vb-float-label" htmlFor="updated_at">Cập nhật cuối</label>
-                      </div>
-                    </div>
-                  </section>
+
 
                   <div className="vb-modal-actions">
                     <button type="submit" className="vb-btn vb-btn-primary" disabled={saving}>

@@ -41,6 +41,7 @@ export default function Register() {
     try {
       await api.post('/api/v1/auth/register', {
         ...form,
+        province_code: String(selectedProvince.code),
         province_name: selectedProvince.name,
         ward_name: selectedWard.name,
       })
