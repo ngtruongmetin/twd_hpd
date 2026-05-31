@@ -72,6 +72,7 @@ Table users {
   school_name varchar(200)
   work_unit varchar(200)
   organization_position varchar(150)
+  facebook_post_url text
 
   role_id int [not null, ref: > roles.id]
   account_source account_source [not null]
@@ -170,6 +171,14 @@ Table submissions {
   description text
   video_url text [not null]
   file_name varchar(255)
+  note text
+  author_full_name varchar(255)
+  author_province_name varchar(255)
+  author_ward_name varchar(255)
+  author_school_name varchar(255)
+  other_members text
+  drive_file_id varchar(255)
+  drive_is_public boolean [default: false]
   file_ext varchar(20)
   file_size_bytes bigint
   duration_seconds int

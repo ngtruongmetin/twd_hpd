@@ -6,6 +6,15 @@ export type SessionUser = {
   full_name?: string
   role_code?: string
   role_name?: string
+  email?: string | null
+  phone?: string | null
+  province_code?: string | null
+  province_name?: string | null
+  ward_name?: string | null
+  school_name?: string | null
+  work_unit?: string | null
+  organization_position?: string | null
+  facebook_post_url?: string | null
 }
 
 const dashboardPathByRole: Record<RoleCode, string> = {
@@ -17,11 +26,11 @@ const dashboardPathByRole: Record<RoleCode, string> = {
 }
 
 const dashboardTitleByRole: Record<RoleCode, string> = {
-  TECH_ADMIN: 'Tech Admin Dashboard',
-  TW_ADMIN: 'TW Admin Dashboard',
-  PROVINCE_ADMIN: 'Province Admin Dashboard',
-  JUDGE: 'Judge Dashboard',
-  CONTESTANT: 'Contest Dashboard',
+  TECH_ADMIN: 'Dashboard QTV kỹ thuật',
+  TW_ADMIN: 'Dashboard BTC TW Đoàn',
+  PROVINCE_ADMIN: 'Dashboard QTV tỉnh',
+  JUDGE: 'Dashboard Giám khảo',
+  CONTESTANT: 'Dashboard Thí sinh',
 }
 
 export function getDashboardPathForRole(roleCode?: string | null) {
@@ -34,8 +43,8 @@ export function getDashboardPathForRole(roleCode?: string | null) {
 
 export function getDashboardTitleForRole(roleCode?: string | null) {
   if (!roleCode) {
-    return 'Contest Dashboard'
+    return 'Dashboard Thí sinh'
   }
 
-  return dashboardTitleByRole[roleCode as RoleCode] ?? 'Contest Dashboard'
+  return dashboardTitleByRole[roleCode as RoleCode] ?? 'Dashboard Thí sinh'
 }

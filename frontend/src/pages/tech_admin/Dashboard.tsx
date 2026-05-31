@@ -14,6 +14,7 @@ const quickActions = [
     title: 'Mùa thi và cấu hình',
     description: 'Thiết lập timeline, bảng thi và các mốc công bố.',
     meta: 'seasons, competition_tables',
+    to: '/dashboard/tech_admin/seasons',
   },
   {
     title: 'Hệ thống email',

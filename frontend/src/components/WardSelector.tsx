@@ -32,11 +32,16 @@ export default function WardSelector({ provinceCode, value, onChange }: WardSele
   const previousProvinceCodeRef = useRef<number | null | undefined>(undefined)
 
   useEffect(() => {
-    const isFirstRender = previousProvinceCodeRef.current === undefined
-    const provinceChanged = previousProvinceCodeRef.current !== provinceCode
+    const previousProvinceCode = previousProvinceCodeRef.current
+    const provinceChanged = previousProvinceCode !== provinceCode
     previousProvinceCodeRef.current = provinceCode
 
-    if (!isFirstRender && provinceChanged) {
+    if (
+      previousProvinceCode !== undefined &&
+      previousProvinceCode !== null &&
+      provinceCode !== null &&
+      provinceChanged
+    ) {
       onChange(null)
       setQuery('')
       setIndex(0)
