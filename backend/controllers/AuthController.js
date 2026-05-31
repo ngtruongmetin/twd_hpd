@@ -1,10 +1,48 @@
 const db = require("../utils/db");
 const bcrypt = require("bcrypt");
 
+function buildSessionUserSql() {
+    return `SELECT
+        users.id,
+        users.username,
+        users.full_name,
+        users.school_name,
+        users.ward_name,
+        users.province_name,
+        users.province_code,
+        users.organization_position,
+        users.phone,
+        users.email,
+        users.work_unit,
+        users.facebook_post_url,
+        roles.code as role_code,
+        roles.name as role_name
+        FROM users
+        INNER JOIN roles ON roles.id = users.role_id
+        WHERE users.username = ?`;
+}
+
+function loadSessionUser(username, callback) {
+    db.get(buildSessionUserSql(), [username], callback);
+}
+
+function isFacebookLink(value) {
+    if (!value) {
+        return true;
+    }
+
+    try {
+        const parsed = new URL(value);
+        return /(^|\.)facebook\.com$/i.test(parsed.hostname);
+    } catch {
+        return false;
+    }
+}
+
 class AuthController {
     static async Login(req, res) {
-        let username = req.body.username;
-        let password = req.body.password;
+        const username = req.body.username;
+        const password = req.body.password;
 
         if (!username || !password) {
             return res.status(400).json({
@@ -13,24 +51,25 @@ class AuthController {
             });
         }
 
-        let sql = `SELECT 
+        const sql = `SELECT
         users.id,
-        users.username, 
-        users.full_name, 
-        users.school_name, 
-        users.ward_name, 
-        users.province_name, 
-        users.organization_position, 
-        users.phone, 
-        users.email, 
-        users.work_unit,
+        users.username,
+        users.full_name,
+        users.school_name,
+        users.ward_name,
+        users.province_name,
         users.province_code,
+        users.organization_position,
+        users.phone,
+        users.email,
+        users.work_unit,
+        users.facebook_post_url,
         roles.code as role_code,
         roles.name as role_name,
         users.password_hash
-        FROM users 
-        INNER JOIN roles ON roles.id = users.role_id 
-        WHERE username = $1`;
+        FROM users
+        INNER JOIN roles ON roles.id = users.role_id
+        WHERE users.username = ?`;
 
         db.get(sql, [username], async (err, row) => {
             if (err) {
@@ -48,14 +87,24 @@ class AuthController {
             }
 
             if (await bcrypt.compare(password, row.password_hash)) {
-                let data = {
+                const data = {
                     success: true,
                     message: "Đăng nhập thành công",
                     data: row
                 };
+
                 delete data.data.password_hash;
                 req.session.user = data.data;
-                return res.status(200).json(data);
+                return req.session.save((saveErr) => {
+                    if (saveErr) {
+                        return res.status(500).json({
+                            success: false,
+                            message: saveErr.message
+                        });
+                    }
+
+                    return res.status(200).json(data);
+                });
             }
 
             return res.status(404).json({
@@ -75,6 +124,7 @@ class AuthController {
             province_name,
             province_code,
             organization_position,
+            facebook_post_url,
             phone,
             email,
             work_unit,
@@ -88,9 +138,9 @@ class AuthController {
             });
         }
 
-        role_id = role_id || 4; // default: Thí sinh
+        role_id = role_id || 4;
 
-        const checkSql = `SELECT username, email FROM users WHERE username = $1 OR email = $2`;
+        const checkSql = `SELECT username, email FROM users WHERE username = ? OR email = ?`;
         db.get(checkSql, [username, email], async (err, existingUser) => {
             if (err) {
                 return res.status(500).json({
@@ -108,6 +158,7 @@ class AuthController {
                 } else if (existingUser.email === email) {
                     message = "Email đã tồn tại";
                 }
+
                 return res.status(400).json({
                     success: false,
                     message
@@ -115,9 +166,9 @@ class AuthController {
             }
 
             const passwordHash = await bcrypt.hash(password, 10);
-            const insertSql = `INSERT INTO users 
-            (username, password_hash, full_name, school_name, ward_name, province_name, province_code, organization_position, phone, email, work_unit, role_id, account_source, status) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
+            const insertSql = `INSERT INTO users
+            (username, password_hash, full_name, school_name, ward_name, province_name, province_code, organization_position, facebook_post_url, phone, email, work_unit, role_id, account_source, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             db.run(insertSql, [
                 username,
@@ -128,18 +179,20 @@ class AuthController {
                 province_name || null,
                 province_code || null,
                 organization_position || null,
+                facebook_post_url || null,
                 phone || null,
                 email,
                 work_unit || null,
                 role_id,
-                'SELF_REGISTERED',
-                'ACTIVE'
+                "SELF_REGISTERED",
+                "ACTIVE"
             ], function (insertErr) {
                 if (insertErr) {
                     let message = "Đăng ký không thành công";
                     if (insertErr.message && insertErr.message.includes("unique")) {
                         message = "Email hoặc username đã tồn tại";
                     }
+
                     return res.status(500).json({
                         success: false,
                         message
@@ -158,7 +211,7 @@ class AuthController {
             });
         });
     }
-    // Kiểm tra xem người dùng đã đăng nhập chưa
+
     static async Me(req, res) {
         if (!req.session.user) {
             return res.status(401).json({
@@ -167,12 +220,149 @@ class AuthController {
             });
         }
 
-        return res.status(200).json({
-            success: true,
-            data: req.session.user
+        loadSessionUser(req.session.user.username, (err, row) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: err.message
+                });
+            }
+
+            if (!row) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Người dùng không tồn tại"
+                });
+            }
+
+            req.session.user = row;
+            return req.session.save((saveErr) => {
+                if (saveErr) {
+                    return res.status(500).json({
+                        success: false,
+                        message: saveErr.message
+                    });
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    data: row
+                });
+            });
         });
     }
-    // Đăng xuất
+
+    static async UpdateMe(req, res) {
+        if (!req.session.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Chưa đăng nhập"
+            });
+        }
+
+        const username = req.session.user.username;
+        const body = req.body || {};
+        const allowedFields = [
+            "email",
+            "phone",
+            "school_name",
+            "work_unit",
+            "organization_position",
+            "facebook_post_url"
+        ];
+        const fields = allowedFields.filter((key) => body[key] !== undefined);
+        const lockedFields = [
+            "full_name",
+            "province_code",
+            "province_name",
+            "ward_name",
+        ];
+        const changedLockedFields = lockedFields.filter((key) => body[key] !== undefined && body[key] !== req.session.user[key]);
+
+        if (changedLockedFields.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Họ tên, tỉnh/thành và phường/xã là thông tin cố định, không thể thay đổi"
+            });
+        }
+
+        if (fields.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Vui lòng cung cấp dữ liệu cập nhật"
+            });
+        }
+
+        if (body.facebook_post_url !== undefined && !isFacebookLink(body.facebook_post_url)) {
+            return res.status(400).json({
+                success: false,
+                message: "Link Facebook không hợp lệ"
+            });
+        }
+
+        const assignments = fields.map((key) => `${key} = ?`).join(", ");
+        const values = fields.map((key) => body[key]);
+
+        db.run(
+            `UPDATE users SET ${assignments}, updated_at = CURRENT_TIMESTAMP WHERE username = ?`,
+            [...values, username],
+            function (err) {
+                if (err) {
+                    if (err.message && err.message.toLowerCase().includes("unique")) {
+                        return res.status(400).json({
+                            success: false,
+                            message: "Email hoặc username đã tồn tại"
+                        });
+                    }
+
+                    return res.status(500).json({
+                        success: false,
+                        message: err.message
+                    });
+                }
+
+                if (this.changes === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Người dùng không tồn tại"
+                    });
+                }
+
+                loadSessionUser(username, (loadErr, row) => {
+                    if (loadErr) {
+                        return res.status(500).json({
+                            success: false,
+                            message: loadErr.message
+                        });
+                    }
+
+                    if (!row) {
+                        return res.status(404).json({
+                            success: false,
+                            message: "Người dùng không tồn tại"
+                        });
+                    }
+
+                    req.session.user = row;
+                    return req.session.save((saveErr) => {
+                        if (saveErr) {
+                            return res.status(500).json({
+                                success: false,
+                                message: saveErr.message
+                            });
+                        }
+
+                        return res.status(200).json({
+                            success: true,
+                            message: "Cập nhật hồ sơ thành công",
+                            data: row
+                        });
+                    });
+                });
+            }
+        );
+    }
+
     static async Logout(req, res) {
         req.session.destroy((err) => {
             if (err) {
@@ -191,8 +381,5 @@ class AuthController {
         });
     }
 }
-
-
-
 
 module.exports = AuthController;

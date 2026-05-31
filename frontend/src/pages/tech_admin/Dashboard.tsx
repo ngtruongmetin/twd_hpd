@@ -14,6 +14,7 @@ const quickActions = [
     title: 'Mùa thi và cấu hình',
     description: 'Thiết lập timeline, bảng thi và các mốc công bố.',
     meta: 'seasons, competition_tables',
+    to: '/dashboard/tech_admin/seasons',
   },
   {
     title: 'Hệ thống email',
@@ -73,10 +74,7 @@ export default function TechAdminDashboard() {
               <dt>Role</dt>
               <dd>{user?.role_name || user?.role_code || 'TECH_ADMIN'}</dd>
             </div>
-            <div>
-              <dt>Scope</dt>
-              <dd>Toàn bộ hệ thống</dd>
-            </div>
+
           </dl>
         </aside>
       </section>
