@@ -62,10 +62,12 @@ app.get("/", (req, res) => {
   res.send("Server running");
 });
 
+
+// 404 không tìm thấy API 
+app.use(require("./middlewares/notfound"));
+
 app.listen(3000, () => {
   console.log("Server running on port 3000");
 });
 
 
-// 404 không tìm thấy API 
-app.use(require("./middlewares/notfound"));
