@@ -131,7 +131,7 @@ app.use("/api/v1/awards", require("./modules/awards/routes"));
 app.use("/api/v1/award_winners", require("./modules/award_winners/routes"));
 app.use("/api/v1/email_logs", require("./modules/email_logs/routes"));
 app.use("/api/v1/mail", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require("./modules/mail/routes"));
-app.use("/api/v1/export", require("./modules/export/routes"));
+//app.use("/api/v1/export", require("./modules/export/routes"));
 
 app.get("/", (req, res) => {
   res.send("Server running");
@@ -146,8 +146,3 @@ app.listen(3000, () => {
 });
 
 
-<<<<<<< HEAD
-=======
-// 404 không tìm thấy API 
-app.use(require("./middlewares/notfound"));
->>>>>>> ba533ddac507638d823869a7db5fb529bfd32d92
