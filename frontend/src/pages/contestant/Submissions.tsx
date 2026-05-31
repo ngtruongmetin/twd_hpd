@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
@@ -119,6 +119,23 @@ function isFacebookLink(value?: string | null) {
   }
 }
 
+function isSeasonAcceptingSubmissions(season?: SeasonRow | null) {
+  if (!season) return false
+
+  if (String(season.status || '').toUpperCase() !== 'OPEN_SUBMISSION') {
+    return false
+  }
+
+  const now = Date.now()
+  const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null
+  const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null
+
+  if (openAt && now < openAt) return false
+  if (closeAt && now > closeAt) return false
+
+  return true
+}
+
 export default function ContestantSubmissions() {
   const { user } = useAuth()
   const title = getDashboardTitleForRole(user?.role_code)
@@ -135,6 +152,7 @@ export default function ContestantSubmissions() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const successTimerRef = useRef<number | null>(null)
 
   const selectedSeason = useMemo(
     () => seasons.find((season) => String(season.id) === form.seasonId) || seasons[0] || null,
@@ -151,6 +169,8 @@ export default function ContestantSubmissions() {
     [availableCompetitionTables, form.competitionTableId],
   )
 
+  const seasonAcceptingSubmissions = isSeasonAcceptingSubmissions(selectedSeason)
+
   const profileReady =
     !!user?.full_name &&
     !!user?.province_name &&
@@ -160,6 +180,7 @@ export default function ContestantSubmissions() {
     !!user?.phone &&
     isFacebookLink(user?.facebook_post_url || '') &&
     !!selectedSeason &&
+    seasonAcceptingSubmissions &&
     !!selectedCompetitionTable &&
     !!form.title.trim() &&
     !!form.summary.trim() &&
@@ -206,6 +227,14 @@ export default function ContestantSubmissions() {
 
   useEffect(() => {
     void loadData()
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -295,7 +324,12 @@ export default function ContestantSubmissions() {
     event.preventDefault()
 
     if (!profileReady) {
-      setError('Bạn cần hoàn thiện hồ sơ và dán Link Google Drive bài thi trước khi nộp bài.')
+      if (!seasonAcceptingSubmissions) {
+        setError('Cuộc thi này đã đóng nộp bài.')
+        return
+      }
+
+      setError('Bạn cần hoàn thiện hồ sơ (bao gồm link Facebook hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.')
       return
     }
 
@@ -319,7 +353,13 @@ export default function ContestantSubmissions() {
         other_members: form.otherMembers || null,
       })
 
-      setSuccess('Đã gửi bài thành công.')
+      setSuccess('Đã gửi bài thành công. Hệ thống sẽ gửi email xác nhận tới email của bạn.')
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current)
+      }
+      successTimerRef.current = window.setTimeout(() => {
+        setSuccess('')
+      }, 2500)
       setForm((current) => ({ ...initialForm, seasonId: current.seasonId, competitionTableId: current.competitionTableId }))
       setDriveValidation(null)
       await loadData()
@@ -376,7 +416,7 @@ export default function ContestantSubmissions() {
 
         <aside className="vb-admin-session">
           <p className="vb-overline">Cuộc thi</p>
-          <h2>{selectedSeason?.name || 'Chưa có mùa thi'}</h2>
+          <h2>{selectedSeason?.name || 'Chưa có cuộc thi'}</h2>
           <dl className="vb-session-list">
             <div>
               <dt>Hạn nộp</dt>
@@ -395,7 +435,6 @@ export default function ContestantSubmissions() {
       </section>
 
       {loading ? <section className="vb-account-banner">Đang tải trang nộp bài...</section> : null}
-      {success ? <section className="vb-account-banner">{success}</section> : null}
 
       <section className="vb-contestant-grid">
         <article className="vb-contestant-panel vb-contestant-submit">
@@ -410,7 +449,7 @@ export default function ContestantSubmissions() {
             <div className="vb-submit-meta">
               <div className="vb-field">
                 <label className="vb-label" htmlFor="seasonName">
-                  Mùa thi
+                  Cuộc thi
                 </label>
                 <input
                   id="seasonName"
@@ -548,11 +587,16 @@ export default function ContestantSubmissions() {
 
             {error ? <p className="vb-form-error vb-form-submit-error">{error}</p> : null}
 
+            {!seasonAcceptingSubmissions ? (
+              <p className="vb-form-error vb-form-submit-error">Cuộc thi này đã đóng nộp bài.</p>
+            ) : null}
+
             {!profileReady ? (
               <p className="vb-form-error">
-                Bạn cần hoàn thiện hồ sơ và dán Link Google Drive bài thi trước khi nộp bài.
+                Bạn cần hoàn thiện hồ sơ (bao gồm link Facebook hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.
               </p>
             ) : null}
+            {success ? <p className="vb-form-success vb-form-submit-success">{success}</p> : null}
           </form>
         </article>
 

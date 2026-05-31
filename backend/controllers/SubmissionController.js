@@ -1,3 +1,5 @@
+const nodemailer = require("nodemailer");
+const path = require("path");
 const db = require("../utils/db");
 
 function dbGet(sql, params = []) {
@@ -39,6 +41,185 @@ function dbRun(sql, params = []) {
     });
 }
 
+function createMailTransporter() {
+    if (!process.env.MAIL_ADDRESS || !process.env.MAIL_PASSWORD) {
+        return null;
+    }
+
+    return nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: process.env.MAIL_ADDRESS,
+            pass: process.env.MAIL_PASSWORD,
+        },
+    });
+}
+
+function formatDateTimeForMail(value) {
+    if (!value) {
+        return "N/A";
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    return new Intl.DateTimeFormat("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(date);
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+async function writeEmailLog({ userId, email, templateCode, subject, status, sentAt = null, errorMessage = null }) {
+    try {
+        await dbRun(
+            `INSERT INTO email_logs (user_id, email, template_code, subject, status, sent_at, error_message)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [userId, email, templateCode, subject, status, sentAt, errorMessage]
+        );
+    } catch {
+        // Không chặn luồng nộp bài vì lỗi log email.
+    }
+}
+
+async function sendSubmissionConfirmationEmail({
+    user,
+    submission,
+    season,
+    competitionTable,
+    submissionCount,
+}) {
+    const transporter = createMailTransporter();
+    if (!transporter) {
+        await writeEmailLog({
+            userId: user.id,
+            email: user.email,
+            templateCode: "SUBMISSION_CONFIRMATION",
+            subject: `Xác nhận bài nộp: ${submission.title}`,
+            status: "FAILED",
+            errorMessage: "Thiếu cấu hình MAIL_ADDRESS hoặc MAIL_PASSWORD",
+        });
+        return { sent: false, skipped: true };
+    }
+
+    const seasonName = season?.name || "Cuộc thi";
+    const tableName = competitionTable?.name || competitionTable?.code || "Bảng thi";
+    const submittedAt = formatDateTimeForMail(submission.created_at || new Date().toISOString());
+    const subject = `Xác nhận nộp bài: ${submission.title}`;
+    const safeUserName = escapeHtml(user.full_name || user.username || "bạn");
+    const safeSeasonName = escapeHtml(seasonName);
+    const safeTableName = escapeHtml(tableName);
+    const safeTitle = escapeHtml(submission.title);
+    const safeDescription = escapeHtml(submission.description || "Không có");
+    const safeDriveUrl = escapeHtml(submission.video_url || "");
+    const text = [
+        `Xin chào ${user.full_name || user.username || "bạn"},`,
+        "",
+        `Hệ thống đã ghi nhận bài nộp của bạn.`,
+        `Cuộc thi: ${seasonName}`,
+        `Bảng thi: ${tableName}`,
+        `Tiêu đề bài thi: ${submission.title}`,
+        `Mô tả ngắn: ${submission.description || "Không có"}`,
+        `Nội dung bài thi: ${submission.video_url || "Không có"}`,
+        `Số bài đã nộp: ${submissionCount}/3`,
+        `Thời gian nộp bài: ${submittedAt}`,
+        "",
+        "Nếu đây không phải bài bạn vừa gửi, vui lòng liên hệ BTC để được hỗ trợ.",
+    ].join("\n");
+
+    const html = `
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8" />
+      </head>
+      <body style="margin:0;padding:0;background:#fafafa;font-family:'Be Vietnam Pro','Segoe UI',Tahoma,Arial,sans-serif;color:#111">
+        <div style="max-width:680px;margin:0 auto;padding:28px 18px">
+          <div style="border:1px solid #e5e5e5;border-top:5px solid #ef4444;background:#fff;border-radius:16px;overflow:hidden">
+            <div style="padding:24px 28px;border-bottom:1px solid #e5e5e5">
+              <img src="cid:chuhieu" alt="Hoa Phượng Đỏ" style="display:block;width:220px;max-width:100%;height:auto;margin:0 auto 20px" />
+              <p style="margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.08em">Xác nhận bài nộp</p>
+              <h1 style="margin:0;font-size:28px;line-height:1.25;font-weight:800;color:#111">Hệ thống đã ghi nhận bài nộp của bạn</h1>
+              <p style="margin:14px 0 0;font-size:16px;line-height:1.75;color:#525252">Xin chào <strong style="color:#111">${safeUserName}</strong>, bài dự thi của bạn đã được lưu trên hệ thống.</p>
+            </div>
+            <div style="padding:24px 28px">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">
+                <tr><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Cuộc thi</td><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:700">${safeSeasonName}</td></tr>
+                <tr><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Bảng thi</td><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:700">${safeTableName}</td></tr>
+                <tr><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Tiêu đề</td><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:700">${safeTitle}</td></tr>
+                <tr><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Số bài đã nộp</td><td style="padding:12px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:700">${submissionCount}/3</td></tr>
+                <tr><td style="padding:12px 0;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Thời gian nộp bài</td><td style="padding:12px 0;text-align:right;font-weight:700">${submittedAt}</td></tr>
+              </table>
+              <div style="margin-top:20px;padding:16px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa">
+                <p style="margin:0 0 6px;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Mô tả ngắn</p>
+                <p style="margin:0;color:#111;font-size:15px;line-height:1.7">${safeDescription}</p>
+              </div>
+              <div style="margin-top:16px;padding:16px;border:2px solid #0a0a0a;border-radius:12px;background:#fff">
+                <p style="margin:0 0 10px;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Nội dung bài thi</p>
+                <a href="${safeDriveUrl}" style="display:inline-block;padding:12px 18px;background:#0a0a0a;color:#fff;text-decoration:none;border-radius:12px;font-size:14px;font-weight:700">Mở link Google Drive</a>
+                <p style="margin:12px 0 0;color:#525252;font-size:13px;line-height:1.6;word-break:break-all">${safeDriveUrl}</p>
+              </div>
+            </div>
+          </div>
+          <p style="margin:16px 0 0;color:#525252;font-size:13px;line-height:1.7">Nếu đây không phải bài bạn vừa gửi, vui lòng liên hệ BTC để được hỗ trợ.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Ban chỉ huy Trung ương chiến dịch Hoa Phượng Đỏ" <${process.env.MAIL_ADDRESS}>`,
+            to: user.email,
+            subject,
+            text,
+            html,
+            encoding: "utf-8",
+            textEncoding: "base64",
+            attachments: [
+                {
+                    filename: "chuhieu.png",
+                    path: path.resolve(__dirname, "../../frontend/public/chuhieu.png"),
+                    cid: "chuhieu",
+                },
+            ],
+        });
+
+        await writeEmailLog({
+            userId: user.id,
+            email: user.email,
+            templateCode: "SUBMISSION_CONFIRMATION",
+            subject,
+            status: info.accepted?.length > 0 ? "SENT" : "FAILED",
+            sentAt: info.accepted?.length > 0 ? new Date().toISOString() : null,
+            errorMessage: info.accepted?.length > 0 ? null : "Mail server không chấp nhận người nhận",
+        });
+
+        return { sent: info.accepted?.length > 0, messageId: info.messageId };
+    } catch (error) {
+        await writeEmailLog({
+            userId: user.id,
+            email: user.email,
+            templateCode: "SUBMISSION_CONFIRMATION",
+            subject,
+            status: "FAILED",
+            errorMessage: error?.message || "Không gửi được email xác nhận",
+        });
+
+        return { sent: false, error: error?.message || "Không gửi được email xác nhận" };
+    }
+}
+
 function extractGoogleDriveFileId(value) {
     if (!value) {
         return null;
@@ -78,6 +259,46 @@ function normalizeMemberNames(value) {
         .split(/[;\n,]/)
         .map((item) => item.trim())
         .filter(Boolean);
+}
+
+function isSeasonSubmissionOpen(season) {
+    if (!season) {
+        return {
+            open: false,
+            message: "Không tìm thấy cuộc thi",
+        };
+    }
+
+    const status = String(season.status || "").toUpperCase();
+    if (status !== "OPEN_SUBMISSION") {
+        return {
+            open: false,
+            message: "Cuộc thi này đã đóng nộp bài",
+        };
+    }
+
+    const now = Date.now();
+    const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null;
+    const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null;
+
+    if (openAt && now < openAt) {
+        return {
+            open: false,
+            message: "Cuộc thi này chưa mở nộp bài",
+        };
+    }
+
+    if (closeAt && now > closeAt) {
+        return {
+            open: false,
+            message: "Cuộc thi này đã đóng nộp bài",
+        };
+    }
+
+    return {
+        open: true,
+        message: "",
+    };
 }
 
 function getSubmissionErrorMessage(error) {
@@ -327,6 +548,26 @@ class SubmissionController {
                 });
             }
 
+            const season = await dbGet(
+                "SELECT id, name, status, submission_open_at, submission_close_at FROM seasons WHERE id = ?",
+                [seasonId]
+            );
+
+            if (!season) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy cuộc thi",
+                });
+            }
+
+            const seasonOpenState = isSeasonSubmissionOpen(season);
+            if (!seasonOpenState.open) {
+                return res.status(400).json({
+                    success: false,
+                    message: seasonOpenState.message,
+                });
+            }
+
             const user = req.session.user;
             const authorSnapshot = {
                 full_name: user.full_name || "",
@@ -366,9 +607,32 @@ class SubmissionController {
 
                 await dbRun("COMMIT");
 
+                const seasonInfo = season;
+                const competitionTable = await dbGet(
+                    "SELECT id, name, code FROM competition_tables WHERE id = ?",
+                    [competitionTableId]
+                );
+                const submissionCountRow = await dbGet(
+                    "SELECT COUNT(*) AS total FROM submissions WHERE team_id = ? AND competition_table_id = ?",
+                    [teamId, competitionTableId]
+                );
+
+                void sendSubmissionConfirmationEmail({
+                    user,
+                    submission: {
+                        title,
+                        description,
+                        video_url: driveUrl,
+                        created_at: new Date().toISOString(),
+                    },
+                    season: seasonInfo,
+                    competitionTable,
+                    submissionCount: Number(submissionCountRow?.total || 1),
+                });
+
                 return res.status(201).json({
                     success: true,
-                    message: "Tạo bài thi thành công",
+                    message: "Tạo bài thi thành công. Email xác nhận sẽ được gửi tới bạn sau ít phút.",
                     data: {
                         id: submission.lastID,
                         title,

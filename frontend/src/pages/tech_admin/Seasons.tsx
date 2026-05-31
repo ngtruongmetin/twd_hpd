@@ -10,8 +10,6 @@ type SeasonRow = {
   description: string | null
   submission_open_at: string | null
   submission_close_at: string | null
-  screening_open_at: string | null
-  screening_close_at: string | null
   voting_open_at: string | null
   voting_close_at: string | null
   top5_announce_at: string | null
@@ -41,8 +39,6 @@ type SeasonForm = {
   description: string
   submission_open_at: string
   submission_close_at: string
-  screening_open_at: string
-  screening_close_at: string
   voting_open_at: string
   voting_close_at: string
   top5_announce_at: string
@@ -75,8 +71,6 @@ const initialSeasonForm: SeasonForm = {
   description: '',
   submission_open_at: '',
   submission_close_at: '',
-  screening_open_at: '',
-  screening_close_at: '',
   voting_open_at: '',
   voting_close_at: '',
   top5_announce_at: '',
@@ -161,8 +155,8 @@ export default function TechAdminSeasons() {
       }
     } catch (err: unknown) {
       const message = axios.isAxiosError(err)
-        ? err.response?.data?.message || 'Không tải được dữ liệu mùa thi.'
-        : 'Không tải được dữ liệu mùa thi.'
+        ? err.response?.data?.message || 'Không tải được dữ liệu cuộc thi.'
+        : 'Không tải được dữ liệu cuộc thi.'
       setError(message)
     } finally {
       setLoading(false)
@@ -198,8 +192,6 @@ export default function TechAdminSeasons() {
       description: selectedSeason.description || '',
       submission_open_at: formatForInput(selectedSeason.submission_open_at),
       submission_close_at: formatForInput(selectedSeason.submission_close_at),
-      screening_open_at: formatForInput(selectedSeason.screening_open_at),
-      screening_close_at: formatForInput(selectedSeason.screening_close_at),
       voting_open_at: formatForInput(selectedSeason.voting_open_at),
       voting_close_at: formatForInput(selectedSeason.voting_close_at),
       top5_announce_at: formatForInput(selectedSeason.top5_announce_at),
@@ -254,8 +246,6 @@ export default function TechAdminSeasons() {
       ...seasonForm,
       submission_open_at: toIsoOrNull(seasonForm.submission_open_at),
       submission_close_at: toIsoOrNull(seasonForm.submission_close_at),
-      screening_open_at: toIsoOrNull(seasonForm.screening_open_at),
-      screening_close_at: toIsoOrNull(seasonForm.screening_close_at),
       voting_open_at: toIsoOrNull(seasonForm.voting_open_at),
       voting_close_at: toIsoOrNull(seasonForm.voting_close_at),
       top5_announce_at: toIsoOrNull(seasonForm.top5_announce_at),
@@ -265,20 +255,20 @@ export default function TechAdminSeasons() {
     try {
       if (editingSeasonId) {
         await api.put(`/api/v1/seasons/${editingSeasonId}`, payload)
-        setSeasonMessage('Đã cập nhật mùa thi.')
+        setSeasonMessage('Đã cập nhật cuộc thi.')
       } else {
         const response = await api.post('/api/v1/seasons', payload)
         const createdId = response.data?.data?.id
         if (createdId) {
           setSelectedSeasonId(createdId)
         }
-        setSeasonMessage('Đã tạo mùa thi mới.')
+        setSeasonMessage('Đã tạo cuộc thi mới.')
       }
       await loadData()
     } catch (err: unknown) {
       const message = axios.isAxiosError(err)
-        ? err.response?.data?.message || 'Không lưu được mùa thi.'
-        : 'Không lưu được mùa thi.'
+        ? err.response?.data?.message || 'Không lưu được cuộc thi.'
+        : 'Không lưu được cuộc thi.'
       setSeasonMessage(message)
     } finally {
       setSavingSeason(false)
@@ -288,7 +278,7 @@ export default function TechAdminSeasons() {
   async function handleCompetitionSave(event: FormEvent) {
     event.preventDefault()
     if (!selectedSeason) {
-      setCompetitionMessage('Hãy chọn một mùa thi trước.')
+      setCompetitionMessage('Hãy chọn một cuộc thi trước.')
       return
     }
 
@@ -333,20 +323,20 @@ export default function TechAdminSeasons() {
 
       <section className="vb-admin-hero vb-card vb-card-editorial">
         <div className="vb-admin-hero-copy">
-          <p className="vb-overline">Mùa thi & cấu hình</p>
+          <p className="vb-overline">Cuộc thi & cấu hình</p>
           <h1>Thiết lập timeline, bảng thi và mốc công bố</h1>
           <p className="vb-admin-lead">
-            Quản lý các mùa thi, khung thời gian vận hành và danh mục bảng thi cho TECH_ADMIN.
+            Quản lý các cuộc thi, khung thời gian vận hành và danh mục bảng thi cho TECH_ADMIN.
           </p>
         </div>
 
         <aside className="vb-admin-session">
           <p className="vb-overline">Tổng quan</p>
-          <h2>{seasons.length} mùa thi</h2>
+          <h2>{seasons.length} cuộc thi</h2>
           <dl className="vb-session-list">
             <div>
               <dt>Đang chọn</dt>
-              <dd>{selectedSeason?.name || 'Chưa chọn mùa thi'}</dd>
+              <dd>{selectedSeason?.name || 'Chưa chọn cuộc thi'}</dd>
             </div>
             <div>
               <dt>Bảng thi</dt>
@@ -357,17 +347,17 @@ export default function TechAdminSeasons() {
       </section>
 
       {error ? <section className="vb-account-banner is-error">{error}</section> : null}
-      {loading ? <section className="vb-account-banner">Đang tải mùa thi...</section> : null}
+      {loading ? <section className="vb-account-banner">Đang tải cuộc thi...</section> : null}
 
       <section className="vb-season-layout">
         <aside className="vb-season-panel">
           <div className="vb-section-head is-compact">
             <div>
-              <p className="vb-overline">Danh sách mùa thi</p>
-              <h2>Chọn mùa thi cần cấu hình</h2>
+              <p className="vb-overline">Danh sách cuộc thi</p>
+              <h2>Chọn cuộc thi cần cấu hình</h2>
             </div>
             <button type="button" className="vb-btn vb-btn-secondary" onClick={startNewSeason}>
-              Tạo mùa mới
+              Tạo cuộc thi mới
             </button>
           </div>
 
@@ -391,21 +381,21 @@ export default function TechAdminSeasons() {
         <section className="vb-season-panel">
           <div className="vb-section-head is-compact">
             <div>
-              <p className="vb-overline">Cấu hình mùa thi</p>
+              <p className="vb-overline">Cấu hình cuộc thi</p>
               <h2>Timeline và mốc công bố</h2>
             </div>
-            <p className="vb-section-note">{editingSeasonId ? `Đang sửa #${editingSeasonId}` : 'Tạo mùa thi mới'}</p>
+            <p className="vb-section-note">{editingSeasonId ? `Đang sửa #${editingSeasonId}` : 'Tạo cuộc thi mới'}</p>
           </div>
 
           <form className="vb-season-form" onSubmit={handleSeasonSave}>
             <div className="vb-form-grid">
               <div className="vb-field">
                 <input className="vb-input" placeholder=" " value={seasonForm.code} onChange={(e) => setSeasonForm((prev) => ({ ...prev, code: e.target.value }))} required />
-                <label className="vb-float-label">Mã mùa thi</label>
+                <label className="vb-float-label">Mã cuộc thi</label>
               </div>
               <div className="vb-field">
                 <input className="vb-input" placeholder=" " value={seasonForm.name} onChange={(e) => setSeasonForm((prev) => ({ ...prev, name: e.target.value }))} required />
-                <label className="vb-float-label">Tên mùa thi</label>
+                <label className="vb-float-label">Tên cuộc thi</label>
               </div>
               <div className="vb-field vb-full">
                 <input className="vb-input" placeholder=" " value={seasonForm.description} onChange={(e) => setSeasonForm((prev) => ({ ...prev, description: e.target.value }))} />
@@ -431,8 +421,6 @@ export default function TechAdminSeasons() {
                 {[
                   ['submission_open_at', 'Mở nộp bài'],
                   ['submission_close_at', 'Đóng nộp bài'],
-                  ['screening_open_at', 'Mở sơ duyệt'],
-                  ['screening_close_at', 'Đóng sơ duyệt'],
                   ['voting_open_at', 'Mở bình chọn'],
                   ['voting_close_at', 'Đóng bình chọn'],
                   ['top5_announce_at', 'Công bố top 5'],
@@ -456,7 +444,7 @@ export default function TechAdminSeasons() {
 
             <div className="vb-modal-actions">
               <button type="submit" className="vb-btn vb-btn-primary" disabled={savingSeason}>
-                {savingSeason ? 'Đang lưu...' : 'Lưu mùa thi'}
+                {savingSeason ? 'Đang lưu...' : 'Lưu cuộc thi'}
               </button>
               <button type="button" className="vb-btn vb-btn-secondary" onClick={startNewSeason}>
                 Làm mới
@@ -470,7 +458,7 @@ export default function TechAdminSeasons() {
         <div className="vb-section-head is-compact">
           <div>
             <p className="vb-overline">Bảng thi</p>
-            <h2>Thiết lập bảng thi theo mùa</h2>
+            <h2>Thiết lập bảng thi theo cuộc thi</h2>
           </div>
           <button type="button" className="vb-btn vb-btn-secondary" onClick={startNewCompetition} disabled={!selectedSeason}>
             Tạo bảng thi
@@ -524,7 +512,7 @@ export default function TechAdminSeasons() {
 
           <article className="vb-season-table-card">
             <p className="vb-overline">Danh sách bảng thi</p>
-            <h3>{selectedSeason ? selectedSeason.name : 'Chưa chọn mùa thi'}</h3>
+            <h3>{selectedSeason ? selectedSeason.name : 'Chưa chọn cuộc thi'}</h3>
             <div className="vb-season-table">
               {filteredCompetitionTables.map((table) => (
                 <div key={table.id} className="vb-season-table-item">
