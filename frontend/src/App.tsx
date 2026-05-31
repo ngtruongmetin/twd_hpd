@@ -2,16 +2,19 @@ import './App.css'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import RequireAuth from './components/RequireAuth'
+import RequireRole from './components/RequireRole'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import DashboardRedirect from './pages/DashboardRedirect'
 import TechAdminDashboard from './pages/tech_admin/Dashboard'
 import TechAdminAccounts from './pages/tech_admin/Accounts'
+import TechAdminSeasons from './pages/tech_admin/Seasons'
 import TwAdminDashboard from './pages/tw_admin/Dashboard'
 import ProvinceAdminDashboard from './pages/province_admin/Dashboard'
 import JudgeDashboard from './pages/judge/Dashboard'
 import ContestantDashboard from './pages/contestant/Dashboard'
+import ContestantSubmissions from './pages/contestant/Submissions'
 
 export default function App() {
   return (
@@ -22,12 +25,14 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<RequireAuth><DashboardRedirect /></RequireAuth>} />
-          <Route path="/dashboard/tech_admin" element={<RequireAuth><TechAdminDashboard /></RequireAuth>} />
-          <Route path="/dashboard/tech_admin/accounts" element={<RequireAuth><TechAdminAccounts /></RequireAuth>} />
-          <Route path="/dashboard/tw_admin" element={<RequireAuth><TwAdminDashboard /></RequireAuth>} />
-          <Route path="/dashboard/province_admin" element={<RequireAuth><ProvinceAdminDashboard /></RequireAuth>} />
-          <Route path="/dashboard/judge" element={<RequireAuth><JudgeDashboard /></RequireAuth>} />
-          <Route path="/dashboard/contestant" element={<RequireAuth><ContestantDashboard /></RequireAuth>} />
+          <Route path="/dashboard/tech_admin" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminDashboard /></RequireRole>} />
+          <Route path="/dashboard/tech_admin/accounts" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminAccounts /></RequireRole>} />
+          <Route path="/dashboard/tech_admin/seasons" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminSeasons /></RequireRole>} />
+          <Route path="/dashboard/tw_admin" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminDashboard /></RequireRole>} />
+          <Route path="/dashboard/province_admin" element={<RequireRole allowedRoles={['PROVINCE_ADMIN']}><ProvinceAdminDashboard /></RequireRole>} />
+          <Route path="/dashboard/judge" element={<RequireRole allowedRoles={['JUDGE']}><JudgeDashboard /></RequireRole>} />
+          <Route path="/dashboard/contestant" element={<RequireRole allowedRoles={['CONTESTANT']}><ContestantDashboard /></RequireRole>} />
+          <Route path="/dashboard/contestant/submissions" element={<RequireRole allowedRoles={['CONTESTANT']}><ContestantSubmissions /></RequireRole>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

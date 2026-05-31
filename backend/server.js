@@ -5,6 +5,7 @@ const cors = require("cors");
 const AuthMiddleware = require("./middlewares/AuthMiddleware");
 const bodyparser = require("body-parser");
 const dotenv = require("dotenv");
+const db = require("./utils/db");
 dotenv.config();
 
 const app = express();
@@ -36,6 +37,80 @@ app.use(
   express.static(path.join(__dirname, "assets"))
 );
 
+function ensureUserFacebookColumn() {
+  db.all("PRAGMA table_info(users)", [], (err, rows) => {
+    if (err) {
+      console.error("Failed to inspect users table:", err.message);
+      return;
+    }
+
+    const hasColumn = (rows || []).some((column) => column.name === "facebook_post_url");
+    if (hasColumn) {
+      return;
+    }
+
+    db.run("ALTER TABLE users ADD COLUMN facebook_post_url TEXT", (alterErr) => {
+      if (alterErr) {
+        console.error("Failed to add facebook_post_url column:", alterErr.message);
+      } else {
+        console.log("Added facebook_post_url column to users");
+      }
+    });
+  });
+}
+
+function ensureSubmissionColumns() {
+  const columns = [
+    "note TEXT",
+    "author_full_name TEXT",
+    "author_province_name TEXT",
+    "author_ward_name TEXT",
+    "author_school_name TEXT",
+    "other_members TEXT",
+    "drive_file_id TEXT",
+    "drive_is_public INTEGER DEFAULT 0"
+  ];
+
+  db.all("PRAGMA table_info(submissions)", [], (err, rows) => {
+    if (err) {
+      console.error("Failed to inspect submissions table:", err.message);
+      return;
+    }
+
+    const existingColumns = new Set((rows || []).map((column) => column.name));
+    const missingColumns = columns.filter((column) => {
+      const columnName = column.split(" ")[0];
+      return !existingColumns.has(columnName);
+    });
+
+    if (missingColumns.length === 0) {
+      return;
+    }
+
+    const runNext = (index) => {
+      if (index >= missingColumns.length) {
+        return;
+      }
+
+      const columnDefinition = missingColumns[index];
+      const columnName = columnDefinition.split(" ")[0];
+      db.run(`ALTER TABLE submissions ADD COLUMN ${columnDefinition}`, (alterErr) => {
+        if (alterErr) {
+          console.error(`Failed to add ${columnName} column to submissions:`, alterErr.message);
+        } else {
+          console.log(`Added ${columnName} column to submissions`);
+        }
+
+        runNext(index + 1);
+      });
+    };
+
+    runNext(0);
+  });
+}
+
+ensureUserFacebookColumn();
+ensureSubmissionColumns();
 
 // Routes
 app.use("/api/v1/auth", require("./modules/auth/routes"));
