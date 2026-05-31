@@ -131,18 +131,15 @@ app.use("/api/v1/awards", require("./modules/awards/routes"));
 app.use("/api/v1/award_winners", require("./modules/award_winners/routes"));
 app.use("/api/v1/email_logs", require("./modules/email_logs/routes"));
 app.use("/api/v1/mail", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require("./modules/mail/routes"));
-//app.use("/api/v1/export", require("./modules/export/routes"));
+app.use("/api/v1/export", require("./modules/export/routes"));
 
 app.get("/", (req, res) => {
   res.send("Server running");
 });
 
-
-// 404 không tìm thấy API 
-app.use(require("./middlewares/notfound"));
-
 app.listen(3000, () => {
   console.log("Server running on port 3000");
 });
 
-
+// 404 không tìm thấy API 
+app.use(require("./middlewares/notfound"));
