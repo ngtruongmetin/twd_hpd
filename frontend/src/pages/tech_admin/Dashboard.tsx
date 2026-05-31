@@ -11,7 +11,7 @@ const quickActions = [
     to: '/dashboard/tech_admin/accounts',
   },
   {
-    title: 'Mùa thi và cấu hình',
+    title: 'Cuộc thi và cấu hình',
     description: 'Thiết lập timeline, bảng thi và các mốc công bố.',
     meta: 'seasons, competition_tables',
     to: '/dashboard/tech_admin/seasons',
