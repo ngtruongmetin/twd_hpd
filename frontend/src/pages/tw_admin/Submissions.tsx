@@ -10,7 +10,6 @@ type SubmissionRow = {
   video_url: string | null
   author_full_name: string | null
   author_province_name: string | null
-  author_ward_name: string | null
 }
 
 type CompetitionTableRow = {
@@ -47,7 +46,6 @@ export default function TwAdminSubmissions() {
   const [page, setPage] = useState(1)
   const [tableFilter, setTableFilter] = useState('ALL')
   const [provinceFilter, setProvinceFilter] = useState('ALL')
-  const [wardFilter, setWardFilter] = useState('ALL')
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   async function loadData() {
@@ -85,57 +83,44 @@ export default function TwAdminSubmissions() {
     return map
   }, [tables])
 
-  const provinceOptions = useMemo(
-    () => Array.from(new Set(submissions.map((row) => row.author_province_name).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), 'vi')),
-    [submissions],
-  )
-  const wardOptions = useMemo(
-    () => Array.from(new Set(submissions.map((row) => row.author_ward_name).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), 'vi')),
-    [submissions],
-  )
-
   const filteredRows = useMemo(
     () =>
       submissions.filter((row) => {
         const tableOk = tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter
         const provinceOk = provinceFilter === 'ALL' || row.author_province_name === provinceFilter
-        const wardOk = wardFilter === 'ALL' || row.author_ward_name === wardFilter
-        return tableOk && provinceOk && wardOk
+        return tableOk && provinceOk
       }),
-    [submissions, tableFilter, provinceFilter, wardFilter],
+    [submissions, tableFilter, provinceFilter],
   )
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
-  useEffect(() => setPage(1), [tableFilter, provinceFilter, wardFilter])
+  useEffect(() => {
+    setPage(1)
+  }, [tableFilter, provinceFilter])
 
-  const statsByTable = useMemo(() => {
-    const map = new Map<string, number>()
+  const tableStats = useMemo(() => {
+    const countMap = new Map<number, number>()
     submissions.forEach((row) => {
-      const key = tableNameById.get(row.competition_table_id || 0) || 'Chưa rõ bảng thi'
-      map.set(key, (map.get(key) || 0) + 1)
+      const key = row.competition_table_id || 0
+      countMap.set(key, (countMap.get(key) || 0) + 1)
     })
-    return Array.from(map.entries()).map(([label, total]) => ({ label, total }))
-  }, [submissions, tableNameById])
+    return tables
+      .map((table) => ({ id: table.id, name: table.name, total: countMap.get(table.id) || 0 }))
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'vi'))
+  }, [submissions, tables])
 
-  const statsByProvince = useMemo(() => {
+  const provinceStats = useMemo(() => {
     const map = new Map<string, number>()
     submissions.forEach((row) => {
       const key = row.author_province_name || 'Chưa rõ tỉnh/thành'
       map.set(key, (map.get(key) || 0) + 1)
     })
-    return Array.from(map.entries()).map(([label, total]) => ({ label, total }))
-  }, [submissions])
-
-  const statsByWard = useMemo(() => {
-    const map = new Map<string, number>()
-    submissions.forEach((row) => {
-      const key = row.author_ward_name || 'Chưa rõ phường/xã'
-      map.set(key, (map.get(key) || 0) + 1)
-    })
-    return Array.from(map.entries()).map(([label, total]) => ({ label, total }))
+    return Array.from(map.entries())
+      .map(([label, total]) => ({ label, total }))
+      .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'vi'))
   }, [submissions])
 
   async function handleDeleteSubmission(id: number) {
@@ -161,7 +146,7 @@ export default function TwAdminSubmissions() {
         <div className="vb-admin-hero-copy">
           <p className="vb-overline">TW_ADMIN</p>
           <h1>Quản lý bài nộp</h1>
-          <p className="vb-admin-lead">Thống kê theo bảng thi, tỉnh/thành, phường/xã và quản trị danh sách bài nộp.</p>
+          <p className="vb-admin-lead">Lọc theo bảng thi và tỉnh/thành, xem điểm và quản trị danh sách bài nộp.</p>
         </div>
       </section>
 
@@ -169,34 +154,52 @@ export default function TwAdminSubmissions() {
       {message ? <section className="vb-account-banner">{message}</section> : null}
       {loading ? <section className="vb-account-banner">Đang tải dữ liệu...</section> : null}
 
-      <section className="vb-tw-stats-grid">
-        <article className="vb-season-panel"><p className="vb-overline">Theo bảng thi</p><div className="vb-tw-stat-list">{statsByTable.map((item) => <div key={item.label} className="vb-tw-stat-item"><span>{item.label}</span><strong>{item.total}</strong></div>)}</div></article>
-        <article className="vb-season-panel"><p className="vb-overline">Theo tỉnh/thành</p><div className="vb-tw-stat-list">{statsByProvince.map((item) => <div key={item.label} className="vb-tw-stat-item"><span>{item.label}</span><strong>{item.total}</strong></div>)}</div></article>
-        <article className="vb-season-panel"><p className="vb-overline">Theo phường/xã</p><div className="vb-tw-stat-list">{statsByWard.map((item) => <div key={item.label} className="vb-tw-stat-item"><span>{item.label}</span><strong>{item.total}</strong></div>)}</div></article>
+      <section className="vb-tw-stats-grid vb-tw-stats-grid-2">
+        <article className="vb-season-panel">
+          <p className="vb-overline">Theo bảng thi</p>
+          <div className="vb-tw-stat-list">
+            {tableStats.map((item) => (
+              <div key={item.id} className="vb-tw-stat-item"><span>{item.name}</span><strong>{item.total}</strong></div>
+            ))}
+          </div>
+        </article>
+        <article className="vb-season-panel">
+          <p className="vb-overline">Theo tỉnh/thành</p>
+          <div className="vb-tw-stat-list">
+            {provinceStats.map((item) => (
+              <div key={item.label} className="vb-tw-stat-item"><span>{item.label}</span><strong>{item.total}</strong></div>
+            ))}
+          </div>
+        </article>
       </section>
 
       <section className="vb-season-panel">
+        <div className="vb-section-head is-compact">
+          <div>
+            <p className="vb-overline">Danh sách bài nộp</p>
+            <h2>Kết quả lọc</h2>
+          </div>
+          <p className="vb-section-note">{filteredRows.length} bài nộp khớp điều kiện hiện tại.</p>
+        </div>
+
         <div className="vb-account-toolbar">
           <div className="vb-account-filters">
             <div>
               <label htmlFor="tw-table-filter">Bảng thi</label>
               <select id="tw-table-filter" className="vb-select" value={tableFilter} onChange={(e) => setTableFilter(e.target.value)}>
                 <option value="ALL">Tất cả bảng thi</option>
-                {tables.map((table) => <option key={table.id} value={table.id}>{table.name}</option>)}
+                {tableStats.map((table) => (
+                  <option key={table.id} value={table.id}>{table.name}</option>
+                ))}
               </select>
             </div>
             <div>
               <label htmlFor="tw-province-filter">Tỉnh/Thành</label>
               <select id="tw-province-filter" className="vb-select" value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)}>
                 <option value="ALL">Tất cả tỉnh/thành</option>
-                {provinceOptions.map((item) => <option key={item} value={item || ''}>{item}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="tw-ward-filter">Phường/Xã</label>
-              <select id="tw-ward-filter" className="vb-select" value={wardFilter} onChange={(e) => setWardFilter(e.target.value)}>
-                <option value="ALL">Tất cả phường/xã</option>
-                {wardOptions.map((item) => <option key={item} value={item || ''}>{item}</option>)}
+                {provinceStats.filter((item) => item.label !== 'Chưa rõ tỉnh/thành').map((item) => (
+                  <option key={item.label} value={item.label}>{item.label}</option>
+                ))}
               </select>
             </div>
           </div>

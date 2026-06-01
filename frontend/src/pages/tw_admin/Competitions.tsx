@@ -54,6 +54,19 @@ const initialSeasonForm: SeasonForm = {
   status: 'DRAFT',
 }
 
+const seasonStatusOptions: { value: SeasonStatus; label: string }[] = [
+  { value: 'DRAFT', label: 'Bản nháp' },
+  { value: 'OPEN_SUBMISSION', label: 'Đang mở nộp bài' },
+  { value: 'CLOSED_SUBMISSION', label: 'Đã đóng nộp bài' },
+  { value: 'JUDGING', label: 'Đang chấm điểm' },
+  { value: 'ANNOUNCED', label: 'Đã công bố kết quả' },
+  { value: 'ARCHIVED', label: 'Lưu trữ' },
+]
+
+function statusLabel(status: string) {
+  return seasonStatusOptions.find((item) => item.value === status)?.label || status
+}
+
 function formatForInput(value: string | null) {
   if (!value) return ''
   const date = new Date(value)
@@ -188,7 +201,7 @@ export default function TwAdminCompetitions() {
           <div className="vb-season-list">
             {seasons.map((season) => (
               <button key={season.id} type="button" className={`vb-season-item ${selectedSeason?.id === season.id ? 'is-active' : ''}`} onClick={() => setSelectedSeasonId(season.id)}>
-                <strong>{season.name}</strong><span>{season.code}</span><small>{season.status}</small>
+                <strong>{season.name}</strong><span>{season.code}</span><small>{statusLabel(season.status)}</small>
               </button>
             ))}
           </div>
@@ -209,7 +222,9 @@ export default function TwAdminCompetitions() {
               <div className="vb-field"><input type="datetime-local" className="vb-input" value={seasonForm.final_announce_at} onChange={(e) => setSeasonForm((p) => ({ ...p, final_announce_at: e.target.value }))} /><label className="vb-float-label">Công bố chung cuộc</label></div>
               <div className="vb-field">
                 <select className="vb-select" value={seasonForm.status} onChange={(e) => setSeasonForm((p) => ({ ...p, status: e.target.value as SeasonStatus }))}>
-                  <option value="DRAFT">DRAFT</option><option value="OPEN_SUBMISSION">OPEN_SUBMISSION</option><option value="CLOSED_SUBMISSION">CLOSED_SUBMISSION</option><option value="JUDGING">JUDGING</option><option value="ANNOUNCED">ANNOUNCED</option><option value="ARCHIVED">ARCHIVED</option>
+                  {seasonStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -226,10 +241,33 @@ export default function TwAdminCompetitions() {
           {seasonTables.map((table) => (
             <article key={table.id} className="vb-season-table-item">
               <strong>{table.name}</strong>
-              <span>{table.code}</span>
-              <input className="vb-input" value={table.name} onChange={(e) => setTables((rows) => rows.map((row) => (row.id === table.id ? { ...row, name: e.target.value } : row)))} />
-              <input className="vb-input" value={table.description || ''} onChange={(e) => setTables((rows) => rows.map((row) => (row.id === table.id ? { ...row, description: e.target.value } : row)))} placeholder="Mô tả bảng thi" />
-              <input className="vb-input" value={String(table.max_submissions_per_participant ?? 3)} onChange={(e) => setTables((rows) => rows.map((row) => (row.id === table.id ? { ...row, max_submissions_per_participant: e.target.value } : row)))} placeholder="Số bài tối đa" />
+              <div className="vb-field">
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={table.name}
+                  onChange={(e) => setTables((rows) => rows.map((row) => (row.id === table.id ? { ...row, name: e.target.value } : row)))}
+                />
+                <label className="vb-float-label">Tên bảng thi</label>
+              </div>
+              <div className="vb-field">
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={table.description || ''}
+                  onChange={(e) => setTables((rows) => rows.map((row) => (row.id === table.id ? { ...row, description: e.target.value } : row)))}
+                />
+                <label className="vb-float-label">Mô tả bảng thi</label>
+              </div>
+              <div className="vb-field">
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={String(table.max_submissions_per_participant ?? 3)}
+                  onChange={(e) => setTables((rows) => rows.map((row) => (row.id === table.id ? { ...row, max_submissions_per_participant: e.target.value } : row)))}
+                />
+                <label className="vb-float-label">Số bài tối đa</label>
+              </div>
               <button type="button" className="vb-tw-btn-primary" onClick={() => void handleTableSave(table)} disabled={savingTableId === table.id}>{savingTableId === table.id ? 'Đang lưu...' : 'Lưu bảng thi'}</button>
             </article>
           ))}

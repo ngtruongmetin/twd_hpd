@@ -917,20 +917,7 @@
   min-width: 0;
 }
 
-.vb-account-search {
-  grid-column: 1 / -1;
-}
 
-.vb-select {
-  width: 100%;
-  min-height: 48px;
-  border: 2px solid #d4d4d4;
-  border-radius: 12px;
-  background: #ffffff;
-  padding: 0 14px;
-  font: inherit;
-  color: #111111;
-}
 
 .vb-account-banner {
   border: 1px solid #d4d4d4;
@@ -1771,6 +1758,54 @@
   gap: 16px;
 }
 
+.vb-tw-toolbar-inline {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px) auto;
+  align-items: end;
+}
+
+.vb-tw-toolbar-inline .vb-account-search {
+  grid-column: auto;
+}
+
+.vb-tw-toolbar-inline .vb-account-filters {
+  grid-column: auto;
+  grid-template-columns: 1fr;
+}
+
+.vb-tw-toolbar-cta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.vb-tw-toolbar-row {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px auto;
+  gap: 12px;
+  align-items: end;
+}
+.vb-account-search .vb-input {
+  margin-bottom: 0;
+}
+
+.vb-tw-role-filter .vb-select {
+  margin-bottom: 0;
+}
+.vb-tw-role-filter .vb-field {
+  margin: 0;
+}
+
+.vb-tw-role-filter .vb-select {
+  min-height: 48px;
+}
+
+.vb-tw-action-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
 .vb-tw-stats-grid {
   margin-top: 20px;
   display: grid;
@@ -1778,6 +1813,23 @@
   gap: 16px;
 }
 
+.vb-tw-stats-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vb-account-summary-6 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.vb-select {
+  width: 100%;
+  min-height: 48px;
+  border: 2px solid #d4d4d4;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0 20px 0 14px;
+  font: inherit;
+  color: #111111;
+}
 .vb-tw-stat-list {
   margin-top: 10px;
   display: grid;
@@ -1863,9 +1915,57 @@
   gap: 10px;
 }
 
+.vb-season-table-item > strong {
+  display: block;
+  margin-bottom: 12px;
+}
+.vb-toolbar-select {
+  width: 100%;
+  height: 48px;
+  border: 2px solid #d4d4d4;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0 14px;
+  font-size: 15px;
+  color: #111111;
+  font-family: inherit;
+}
+
+.vb-toolbar-select:focus {
+  outline: none;
+  border-color: #0a0a0a;
+}
+
+.vb-tw-role-filter label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #525252;
+}
 @media (max-width: 1120px) {
   .vb-tw-layout,
   .vb-tw-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vb-tw-toolbar-inline {
+    grid-template-columns: 1fr;
+  }
+
+  .vb-tw-toolbar-cta {
+    justify-content: flex-start;
+  }
+
+  .vb-tw-toolbar-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .vb-account-summary-6 {
     grid-template-columns: 1fr;
   }
 }
