@@ -55,11 +55,6 @@ export default function TechAdminDashboard() {
           <p className="vb-admin-lead">
             Trung tâm điều hành cho tài khoản quản trị viên kỹ thuật.
           </p>
-          <div className="vb-chip-row">
-            <Link className="vb-chip vb-chip-link" to="/dashboard/tech_admin/accounts">
-              Quản lý tài khoản
-            </Link>
-          </div>
         </div>
 
         <aside className="vb-admin-session">

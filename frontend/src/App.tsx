@@ -11,7 +11,11 @@ import TechAdminDashboard from './pages/tech_admin/Dashboard'
 import TechAdminAccounts from './pages/tech_admin/Accounts'
 import TechAdminSeasons from './pages/tech_admin/Seasons'
 import TwAdminDashboard from './pages/tw_admin/Dashboard'
+import TwAdminUsers from './pages/tw_admin/Users'
+import TwAdminSubmissions from './pages/tw_admin/Submissions'
+import TwAdminCompetitions from './pages/tw_admin/Competitions'
 import ProvinceAdminDashboard from './pages/province_admin/Dashboard'
+import ProvinceAdminSubmissions from './pages/province_admin/Submissions'
 import JudgeDashboard from './pages/judge/Dashboard'
 import ContestantDashboard from './pages/contestant/Dashboard'
 import ContestantSubmissions from './pages/contestant/Submissions'
@@ -29,7 +33,11 @@ export default function App() {
           <Route path="/dashboard/tech_admin/accounts" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminAccounts /></RequireRole>} />
           <Route path="/dashboard/tech_admin/seasons" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminSeasons /></RequireRole>} />
           <Route path="/dashboard/tw_admin" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminDashboard /></RequireRole>} />
+          <Route path="/dashboard/tw_admin/users" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminUsers /></RequireRole>} />
+          <Route path="/dashboard/tw_admin/submissions" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminSubmissions /></RequireRole>} />
+          <Route path="/dashboard/tw_admin/competitions" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminCompetitions /></RequireRole>} />
           <Route path="/dashboard/province_admin" element={<RequireRole allowedRoles={['PROVINCE_ADMIN']}><ProvinceAdminDashboard /></RequireRole>} />
+          <Route path="/dashboard/province_admin/submissions" element={<RequireRole allowedRoles={['PROVINCE_ADMIN']}><ProvinceAdminSubmissions /></RequireRole>} />
           <Route path="/dashboard/judge" element={<RequireRole allowedRoles={['JUDGE']}><JudgeDashboard /></RequireRole>} />
           <Route path="/dashboard/contestant" element={<RequireRole allowedRoles={['CONTESTANT']}><ContestantDashboard /></RequireRole>} />
           <Route path="/dashboard/contestant/submissions" element={<RequireRole allowedRoles={['CONTESTANT']}><ContestantSubmissions /></RequireRole>} />
