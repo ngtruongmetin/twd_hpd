@@ -185,9 +185,9 @@ export default function TwAdminCompetitions() {
       <Navbar />
       <section className="vb-admin-hero vb-card vb-card-editorial">
         <div className="vb-admin-hero-copy">
-          <p className="vb-overline">TW_ADMIN</p>
+          <p className="vb-overline">Điều hành trung ương</p>
           <h1>Quản lý cuộc thi</h1>
-          <p className="vb-admin-lead">Chỉnh thông tin cuộc thi và thông tin hai bảng thi theo từng cuộc thi.</p>
+          <p className="vb-admin-lead">Chỉnh thông tin cuộc thi và thông tin hai bảng thi.</p>
         </div>
       </section>
 

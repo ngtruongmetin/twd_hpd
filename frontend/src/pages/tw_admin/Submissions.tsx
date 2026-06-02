@@ -144,7 +144,7 @@ export default function TwAdminSubmissions() {
       <Navbar />
       <section className="vb-admin-hero vb-card vb-card-editorial">
         <div className="vb-admin-hero-copy">
-          <p className="vb-overline">TW_ADMIN</p>
+          <p className="vb-overline">Điều hành trung ương</p>
           <h1>Quản lý bài nộp</h1>
           <p className="vb-admin-lead">Lọc theo bảng thi và tỉnh/thành, xem điểm và quản trị danh sách bài nộp.</p>
         </div>
@@ -176,8 +176,8 @@ export default function TwAdminSubmissions() {
       <section className="vb-season-panel">
         <div className="vb-section-head is-compact">
           <div>
-            <p className="vb-overline">Danh sách bài nộp</p>
-            <h2>Kết quả lọc</h2>
+            <p className="vb-overline">Danh sách</p>
+            <h2>Thông tin bài nộp</h2>
           </div>
           <p className="vb-section-note">{filteredRows.length} bài nộp khớp điều kiện hiện tại.</p>
         </div>

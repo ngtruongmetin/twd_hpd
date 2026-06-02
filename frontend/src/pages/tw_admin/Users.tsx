@@ -339,7 +339,7 @@ export default function TwAdminUsers() {
       <Navbar />
       <section className="vb-admin-hero vb-card vb-card-editorial">
         <div className="vb-admin-hero-copy">
-          <p className="vb-overline">TW_ADMIN</p>
+          <p className="vb-overline">Điều hành trung ương</p>
           <h1>Quản lý người dùng</h1>
           <p className="vb-admin-lead">Quản lý tài khoản toàn hệ thống, trừ thao tác tạo/xóa/sửa với Quản trị kỹ thuật.</p>
         </div>
