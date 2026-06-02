@@ -1820,6 +1820,31 @@
 .vb-account-summary-6 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+
+.vb-province-kpi-grid {
+  margin-top: 16px;
+}
+
+.vb-province-kpi-card {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-height: 132px;
+}
+
+.vb-province-kpi-value {
+  display: block;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1;
+  font-weight: 800;
+  color: #0b2a5b;
+}
+
+.vb-province-kpi-label {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #525252;
+}
 .vb-select {
   width: 100%;
   min-height: 48px;
@@ -1944,6 +1969,30 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #525252;
+}
+.vb-province-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.vb-province-btn {
+  width: 30%;
+  min-width: 240px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .vb-province-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vb-province-btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 @media (max-width: 1120px) {
   .vb-tw-layout,
