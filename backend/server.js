@@ -119,9 +119,6 @@ app.use("/api/v1/submissions", AuthMiddleware.IsLogin, require("./modules/submis
 app.use("/api/v1/roles", require("./modules/roles/routes"));
 app.use("/api/v1/seasons", require("./modules/seasons/routes"));
 app.use("/api/v1/competition_tables", require("./modules/competition_tables/routes"));
-app.use("/api/v1/teams", require("./modules/teams/routes"));
-app.use("/api/v1/team_members", require("./modules/team_members/routes"));
-app.use("/api/v1/judge_assignments", require("./modules/judge_assignments/routes"));
 app.use("/api/v1/scoring_criteria", require("./modules/scoring_criteria/routes"));
 app.use("/api/v1/judge_scores", require("./modules/judge_scores/routes"));
 app.use("/api/v1/voting_snapshots", require("./modules/voting_snapshots/routes"));
@@ -132,6 +129,7 @@ app.use("/api/v1/award_winners", require("./modules/award_winners/routes"));
 app.use("/api/v1/email_logs", require("./modules/email_logs/routes"));
 app.use("/api/v1/mail", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require("./modules/mail/routes"));
 app.use("/api/v1/export", require("./modules/export/routes"));
+app.use("/api/v1/password", require("./modules/password/routes"));
 
 app.get("/", (req, res) => {
   res.send("Server running");

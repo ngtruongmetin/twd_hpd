@@ -151,3 +151,26 @@ Các module sau đều dùng cấu trúc cơ bản CRUD:
 - `ACTIVE`: Hoạt động
 - `INACTIVE`: Không hoạt động
 - `LOCKED`: Bị khóa
+
+## Password API
+
+### /api/v1/password/generate
+
+Method: GET
+Query: length là độ dài của mật khẩu
+
+Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
+
+- Trường hợp để trống query thì độ dài mặc định là 12
+
+- Dữ liệu trả về có dạng:
+
+```json
+{
+  "password": "<Mật khẩu>"
+}
+```
+
+### api/v1/password/change
+
+Method: POST

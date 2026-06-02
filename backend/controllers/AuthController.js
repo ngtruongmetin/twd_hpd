@@ -79,6 +79,7 @@ class AuthController {
                 });
             }
 
+            console.log(row);
             if (!row) {
                 return res.status(404).json({
                     success: false,
