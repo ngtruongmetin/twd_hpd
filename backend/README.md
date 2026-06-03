@@ -96,6 +96,7 @@ Server chạy trên port `3000`
 - Mô tả: Xóa submission
 - Yêu cầu: Đã đăng nhập
 
+
 ## Mail APIs
 
 ### /api/v1/mail/sendto
@@ -152,6 +153,8 @@ Các module sau đều dùng cấu trúc cơ bản CRUD:
 - `INACTIVE`: Không hoạt động
 - `LOCKED`: Bị khóa
 
+## ################ API Mới chưa test ##################### ##
+
 ## Password API
 
 ### /api/v1/password/generate
@@ -175,3 +178,43 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
 
 - Method: POST
 - Các trường thông tin: username, oldPassword, newPassword
+
+
+## Judge Scoring APIs
+
+### /api/v1/judge_scores
+- Phương thức: GET
+- Mô tả: Lấy danh sách tất cả điểm chấm
+- Yêu cầu: Đã đăng nhập + Quyền `TECH_ADMIN`, `TW_ADMIN`, `JUDGE`
+
+### /api/v1/judge_scores/submission/:submissionId
+- Phương thức: GET
+- Mô tả: Lấy điểm chấm theo `submissionId`
+- Yêu cầu: Đã đăng nhập + Quyền `TECH_ADMIN`, `TW_ADMIN`, `JUDGE`
+
+### /api/v1/judge_scores
+- Phương thức: POST
+- Mô tả: Chấm điểm hoặc cập nhật điểm chấm của giám khảo cho một submission
+- Yêu cầu: Đã đăng nhập + Quyền `TECH_ADMIN`, `TW_ADMIN`, `JUDGE`
+- Body: JSON chứa `submission_id` và `scores`
+  ```json
+  {
+    "submission_id": 123,
+    "scores": [
+      { "criterion_id": 1, "points": 8.5, "comment": "Tốt" },
+      { "criterion_id": 2, "points": 7.0 }
+    ]
+  }
+  ```
+- Response: `success`, `message`, `data` gồm `submission_id`, `judge_user_id`, `total_points`, `results`, `details`
+
+### /api/v1/judge_scores/:id
+- Phương thức: PUT
+- Mô tả: Cập nhật điểm chấm hoặc nhận xét
+- Yêu cầu: Đã đăng nhập + Quyền `TECH_ADMIN`, `TW_ADMIN` hoặc `JUDGE` nếu là điểm của chính mình
+- Body: JSON chứa `points` và/hoặc `comment`
+
+### /api/v1/judge_scores/:id
+- Phương thức: DELETE
+- Mô tả: Xóa điểm chấm
+- Yêu cầu: Đã đăng nhập + Quyền `TECH_ADMIN`, `TW_ADMIN` hoặc `JUDGE` nếu là điểm của chính mình
