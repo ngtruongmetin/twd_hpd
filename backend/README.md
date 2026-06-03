@@ -129,8 +129,6 @@ Các module sau đều dùng cấu trúc cơ bản CRUD:
 - `/api/v1/roles`
 - `/api/v1/seasons`
 - `/api/v1/competition_tables`
-- `/api/v1/teams`
-- `/api/v1/team_members`
 - `/api/v1/judge_assignments`
 - `/api/v1/scoring_criteria`
 - `/api/v1/judge_scores`
@@ -179,6 +177,7 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
 - Method: POST
 - Các trường thông tin: username, oldPassword, newPassword
 
+### api/v1/password/forgot 
 
 ## Judge Scoring APIs
 
@@ -218,3 +217,41 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
 - Phương thức: DELETE
 - Mô tả: Xóa điểm chấm
 - Yêu cầu: Đã đăng nhập + Quyền `TECH_ADMIN`, `TW_ADMIN` hoặc `JUDGE` nếu là điểm của chính mình
+
+
+## API của tỉnh 
+### /api/v1/province/submissions 
+
+- Method: GET
+- Yêu cầu: Đã đăng nhập bằng tài khoản tỉnh (role_id 3, role PROVINCE_ADMIN)
+- Dữ liệu trả về: Các bài thi đến từ tỉnh do tài khoản tỉnh quản lý, ví dụ
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 2,
+      "season_id": 1,
+      "competition_table_id": 1,
+      "submitted_by_user_id": 2,
+      "title": "Nhật ký Hạ Đỏ - Nắng Chiều",
+      "description": "Phim ngắn capcut kể chuyện mùa hè.",
+      "video_url": "https://youtu.be/sample2",
+      "note": "Bài thi 2",
+      "author_full_name": "Trần Thị B",
+      "author_province_name": "Hồ Chí Minh",
+      "author_ward_name": "Phường 2",
+      "author_school_name": "THPT Marie Curie",
+      "other_members": "Bạn C",
+      "drive_file_id": null,
+      "drive_is_public": 0,
+      "fb_url": null,
+      "status": "SUBMITTED",
+      "rejection_reason": null,
+      "submitted_at": "2026-06-03 07:50:59",
+      "updated_at": "2026-06-03 07:50:59"
+    }
+  ]
+}
+```

@@ -79,7 +79,6 @@ class AuthController {
                 });
             }
 
-            console.log(row);
             if (!row) {
                 return res.status(404).json({
                     success: false,
@@ -95,6 +94,7 @@ class AuthController {
                 };
 
                 delete data.data.password_hash;
+                
                 req.session.user = data.data;
                 return req.session.save((saveErr) => {
                     if (saveErr) {
