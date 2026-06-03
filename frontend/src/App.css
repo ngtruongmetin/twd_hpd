@@ -20,7 +20,11 @@
   background: #ef4444;
   margin-top: 12px;
 }
-
+.vb-modal .vb-account-banner {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
 .vb-nav-main {
   display: flex;
   justify-content: space-between;
@@ -1932,6 +1936,45 @@
   color: #1d4ed8;
 }
 
+.vb-judge-criteria-list {
+  display: grid;
+  gap: 14px;
+}
+
+.vb-judge-criterion-card {
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+  background: #fff;
+  padding: 16px;
+}
+
+.vb-judge-criterion-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.vb-judge-criterion-head h4 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.vb-judge-criterion-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.vb-judge-field-error {
+  margin: 8px 0 0;
+  color: #ef4444;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .vb-tw-pagination {
   margin-top: 12px;
   display: flex;
@@ -2015,6 +2058,10 @@
 
 @media (max-width: 768px) {
   .vb-account-summary-6 {
+    grid-template-columns: 1fr;
+  }
+
+  .vb-judge-criterion-grid {
     grid-template-columns: 1fr;
   }
 }

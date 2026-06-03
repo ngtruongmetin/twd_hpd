@@ -365,7 +365,7 @@ async function validateGoogleDriveAccess(url) {
                     valid: false,
                     public: false,
                     fileId,
-                message: "Link Google Drive bài thi chưa được chia sẻ công khai hoặc không tồn tại",
+                    message: "Link Google Drive bài thi chưa được chia sẻ công khai hoặc không tồn tại",
                 };
             }
         }
@@ -386,71 +386,7 @@ async function validateGoogleDriveAccess(url) {
     }
 }
 
-async function ensureContestantTeam(user, seasonId, authorSnapshot, memberNames) {
-    const existingTeam = await dbGet(
-        "SELECT id FROM teams WHERE season_id = ? AND created_by_user_id = ? ORDER BY id DESC LIMIT 1",
-        [seasonId, user.id]
-    );
 
-    let teamId = existingTeam ? existingTeam.id : null;
-
-    if (!teamId) {
-        const teamName = authorSnapshot.full_name || user.full_name || user.username || "Contestant";
-        const participantType = memberNames.length > 0 ? "TEAM" : "INDIVIDUAL";
-
-        const insertedTeam = await dbRun(
-            `INSERT INTO teams
-            (season_id, name, participant_type, province_name, ward_name, school_name, created_by_user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-                seasonId,
-                teamName,
-                participantType,
-                authorSnapshot.province_name || null,
-                authorSnapshot.ward_name || null,
-                authorSnapshot.school_name || null,
-                user.id,
-            ]
-        );
-
-        teamId = insertedTeam.lastID;
-
-        await dbRun(
-            `INSERT INTO team_members
-            (team_id, full_name, email, phone, organization_position, is_captain)
-            VALUES (?, ?, ?, ?, ?, 1)`,
-            [
-                teamId,
-                authorSnapshot.full_name || user.full_name || user.username,
-                user.email || null,
-                user.phone || null,
-                user.organization_position || null,
-            ]
-        );
-    }
-
-    if (memberNames.length > 0) {
-        const existingMembers = await dbAll("SELECT full_name FROM team_members WHERE team_id = ?", [teamId]);
-        const existingNames = new Set(existingMembers.map((member) => String(member.full_name || "").trim().toLowerCase()));
-
-        for (const memberName of memberNames) {
-            const normalizedName = memberName.trim().toLowerCase();
-            if (!normalizedName || existingNames.has(normalizedName)) {
-                continue;
-            }
-
-            await dbRun(
-                `INSERT INTO team_members
-                (team_id, full_name, email, phone, organization_position, is_captain)
-                VALUES (?, ?, ?, ?, ?, 0)`,
-                [teamId, memberName, null, null, null]
-            );
-            existingNames.add(normalizedName);
-        }
-    }
-
-    return teamId;
-}
 
 class SubmissionController {
     static async getSubmissions(req, res) {
@@ -579,27 +515,52 @@ class SubmissionController {
 
             await dbRun("BEGIN TRANSACTION");
             try {
-                const teamId = await ensureContestantTeam(user, seasonId, authorSnapshot, memberNames);
+
 
                 const submission = await dbRun(
                     `INSERT INTO submissions
-                    (season_id, competition_table_id, team_id, submitted_by_user_id, title, description, video_url, file_name, note, author_full_name, author_province_name, author_ward_name, author_school_name, other_members, drive_file_id, drive_is_public, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')`,
+                    (
+                        season_id,
+                        competition_table_id,
+                        submitted_by_user_id,
+
+                        title,
+                        description,
+                        video_url,
+                        note,
+
+                        author_full_name,
+                        author_province_name,
+                        author_ward_name,
+                        author_school_name,
+
+                        other_members,
+
+                        drive_file_id,
+                        drive_is_public,
+
+                        status
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')`,
                     [
                         seasonId,
                         competitionTableId,
-                        teamId,
                         user.id,
+
                         title,
                         description,
                         driveUrl,
-                        fileName || null,
                         note || null,
+
                         authorSnapshot.full_name || null,
                         authorSnapshot.province_name || null,
                         authorSnapshot.ward_name || null,
                         authorSnapshot.school_name || null,
-                        memberNames.length > 0 ? memberNames.join("; ") : null,
+
+                        memberNames.length > 0
+                            ? memberNames.join("; ")
+                            : null,
+
                         driveValidation.fileId || null,
                         driveValidation.public ? 1 : 0,
                     ]
@@ -613,8 +574,8 @@ class SubmissionController {
                     [competitionTableId]
                 );
                 const submissionCountRow = await dbGet(
-                    "SELECT COUNT(*) AS total FROM submissions WHERE team_id = ? AND competition_table_id = ?",
-                    [teamId, competitionTableId]
+                    "SELECT COUNT(*) AS total FROM submissions WHERE submitted_by_user_id = ? AND competition_table_id = ?",
+                    [user.id, competitionTableId]
                 );
 
                 void sendSubmissionConfirmationEmail({
@@ -638,7 +599,6 @@ class SubmissionController {
                         title,
                         description,
                         video_url: driveUrl,
-                        file_name: fileName || null,
                         note: note || null,
                         author_full_name: authorSnapshot.full_name || null,
                         author_province_name: authorSnapshot.province_name || null,
@@ -650,7 +610,7 @@ class SubmissionController {
                     },
                 });
             } catch (error) {
-                await dbRun("ROLLBACK").catch(() => {});
+                await dbRun("ROLLBACK").catch(() => { });
                 throw error;
             }
         } catch (error) {
@@ -668,7 +628,6 @@ class SubmissionController {
             const title = String(body.title || "").trim();
             const description = String(body.description || body.summary || "").trim();
             const driveUrl = String(body.video_url || body.drive_url || body.videoUrl || "").trim();
-            const fileName = String(body.file_name || body.fileName || "").trim();
             const note = String(body.note || "").trim();
             const otherMembersRaw = String(body.other_members || body.otherMembers || "").trim();
 
@@ -692,7 +651,6 @@ class SubmissionController {
                 SET title = ?,
                     description = ?,
                     video_url = ?,
-                    file_name = ?,
                     note = ?,
                     other_members = ?,
                     drive_file_id = ?,
@@ -704,7 +662,6 @@ class SubmissionController {
                 title,
                 description,
                 driveUrl,
-                fileName || null,
                 note || null,
                 otherMembers.length > 0 ? otherMembers.join("; ") : null,
                 driveValidation.fileId || null,

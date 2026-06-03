@@ -17,6 +17,7 @@ import TwAdminCompetitions from './pages/tw_admin/Competitions'
 import ProvinceAdminDashboard from './pages/province_admin/Dashboard'
 import ProvinceAdminSubmissions from './pages/province_admin/Submissions'
 import JudgeDashboard from './pages/judge/Dashboard'
+import JudgeSubmissions from './pages/judge/Submissions'
 import ContestantDashboard from './pages/contestant/Dashboard'
 import ContestantSubmissions from './pages/contestant/Submissions'
 
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/dashboard/province_admin" element={<RequireRole allowedRoles={['PROVINCE_ADMIN']}><ProvinceAdminDashboard /></RequireRole>} />
           <Route path="/dashboard/province_admin/submissions" element={<RequireRole allowedRoles={['PROVINCE_ADMIN']}><ProvinceAdminSubmissions /></RequireRole>} />
           <Route path="/dashboard/judge" element={<RequireRole allowedRoles={['JUDGE']}><JudgeDashboard /></RequireRole>} />
+          <Route path="/dashboard/judge/submissions" element={<RequireRole allowedRoles={['JUDGE']}><JudgeSubmissions /></RequireRole>} />
           <Route path="/dashboard/contestant" element={<RequireRole allowedRoles={['CONTESTANT']}><ContestantDashboard /></RequireRole>} />
           <Route path="/dashboard/contestant/submissions" element={<RequireRole allowedRoles={['CONTESTANT']}><ContestantSubmissions /></RequireRole>} />
           <Route path="*" element={<Navigate to="/" replace />} />
