@@ -139,6 +139,7 @@ Các module sau đều dùng cấu trúc cơ bản CRUD:
 - `/api/v1/award_winners`
 - `/api/v1/email_logs`
 
+
 ## Quyền hạn và trạng thái
 - 1: `TECH_ADMIN`
 - 2: `TW_ADMIN`
@@ -266,3 +267,79 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
 
 - Method: POST
 - Trường thông tin: FolderID 
+
+
+
+
+
+
+## Tech Admin API
+Các endpoint chỉ dành cho `TECH_ADMIN` với quyền cao nhất.
+
+### `/api/v1/tech_admin/tables`
+- Phương thức: GET
+- Mô tả: Lấy danh sách các tài nguyên `TECH_ADMIN` có thể truy vấn và thao tác.
+- Yêu cầu: Đã đăng nhập + role `TECH_ADMIN`
+- Response: Danh sách tên resource như `users`, `roles`, `seasons`, `submissions`, `email_logs`, v.v.
+
+### `/api/v1/tech_admin/resources`
+- Phương thức: GET
+- Mô tả: Truy vấn dữ liệu từ một bảng được phép.
+- Tham số query:
+  - `resource`: tên resource, ví dụ `users`, `submissions`, `email_logs`
+  - `limit`: số lượng bản ghi tối đa (mặc định 100)
+- Ví dụ:
+  - `/api/v1/tech_admin/resources?resource=users&limit=50`
+- Response: `success`, `resource`, `limit`, `data`
+
+### `/api/v1/tech_admin/resource`
+- Phương thức: PUT
+- Mô tả: Cập nhật một bản ghi trong bảng được phép.
+- Tham số query:
+  - `resource`: tên resource
+  - `id`: giá trị khoá chính của bản ghi
+- Body: JSON chứa các trường cần cập nhật.
+- Ví dụ:
+  - `PUT /api/v1/tech_admin/resource?resource=users&id=10`
+  - Body:
+    ```json
+    {
+      "full_name": "Nguyen Van B",
+      "email": "b@example.com",
+      "status": "ACTIVE"
+    }
+    ```
+- Response: `success`, `message`, `resource`, `id`, `changes`
+
+### `/api/v1/tech_admin/resource`
+- Phương thức: DELETE
+- Mô tả: Xoá một bản ghi trong bảng được phép.
+- Tham số query:
+  - `resource`: tên resource
+  - `id`: giá trị khoá chính của bản ghi
+- Ví dụ:
+  - `DELETE /api/v1/tech_admin/resource?resource=users&id=10`
+- Response: `success`, `message`, `resource`, `id`, `changes`
+
+### `/api/v1/tech_admin/all`
+- Phương thức: GET
+- Mô tả: Lấy dữ liệu từ tất cả các resource `TECH_ADMIN` được phép (mỗi bảng tối đa `limit` bản ghi).
+- Tham số query:
+  - `limit`: số lượng bản ghi tối đa trên mỗi bảng
+- Ví dụ:
+  - `/api/v1/tech_admin/all?limit=20`
+- Response: `success`, `message`, `limit`, `data`
+
+### Resource `TECH_ADMIN` được hỗ trợ
+- `roles`
+- `users`
+- `seasons`
+- `competition_tables`
+- `scoring_criteria`
+- `judge_scores`
+- `vote_rankings`
+- `submission_results`
+- `submissions`
+- `awards`
+- `award_winners`
+- `email_logs`

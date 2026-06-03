@@ -132,6 +132,7 @@ app.use("/api/v1/mail", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require(
 app.use("/api/v1/export", require("./modules/export/routes"));
 app.use("/api/v1/password", require("./modules/password/routes"));
 app.use("/api/v1/province", require("./modules/province/routes"));
+app.use("/api/v1/tech_admin", require("./modules/tech_admin/routes"));
 
 app.get("/", (req, res) => {
   res.send("Server running");
