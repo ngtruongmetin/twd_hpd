@@ -9,6 +9,16 @@ class AuthMiddleware {
             });
     }
 
+    static CustomRole(allowedRoles) {
+        return (req, res, next) => {
+            var user = req.session.user;
+            if (allowedRoles.includes(user.role_code)) return next();
+            else return res.json({
+                message: "Bạn không có đủ thẩm quyền để truy cập tài nguyên này"
+            });
+        };
+    }
+
     static IsAdmin(req, res, next) {
 
         const list_perm = ["TECH_ADMIN", "TW_ADMIN", "PROVINCE_ADMIN", "JUDGE"]; // ID các quyền được lưu trong CSDL

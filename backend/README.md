@@ -167,10 +167,11 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
 
 ```json
 {
-  "password": "<Mật khẩu>"
+  "password": "<Mật khẩu>" 
 }
 ```
 
 ### api/v1/password/change
 
-Method: POST
+- Method: POST
+- Các trường thông tin: username, oldPassword, newPassword

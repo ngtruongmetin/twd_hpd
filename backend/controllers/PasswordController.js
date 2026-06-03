@@ -1,19 +1,102 @@
 const db = require("../utils/db");
 const bcrypt = require("bcrypt");
+const mailer = require("./MailController");
+
+function GenerateRandomPassword(length = 12) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=';
+    let password = '';
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * alphabet.length);
+        password += alphabet[randomIndex];
+    }
+    return password;
+}
 
 class PasswordController {
     static GeneratePassword(req, res) {
-        const length = parseInt(req.query.length) || 12;
-        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=';
-        let password = '';
-
-        for (let i = 0; i < length; i++) {
-            const randomIndex = Math.floor(Math.random() * alphabet.length);
-            password += alphabet[randomIndex];
+        const password = GenerateRandomPassword();
+        if (!password) {
+            return res.status(500).json({
+                success: false,
+                message: "Không thể tạo mật khẩu"
+            });
         }
 
         res.json({ password });
     }
+    
+    static ForgotPassword(req, res) {
+        const { username, email } = req.body;
+        if (!username || !email) {
+            return res.status(400).json({
+                success: false,
+                message: "Vui lòng cung cấp username và email"
+            });
+        }
+        db.get(`SELECT email FROM users WHERE username = ?`, [username], (err, row) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: err.message
+                });
+            }
+
+            if (!row) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Người dùng không tồn tại"
+                });
+            }
+            if (row.email !== email) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Email không khớp với tài khoản"
+                });
+            }
+
+        });
+        const password = bcrypt.hash(GenerateRandomPassword(), 10, (err, hashedPassword) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: err.message
+                });
+            }
+            db.run(`UPDATE users SET password_hash = ? WHERE username = ?`, [hashedPassword, username], (err) => {
+                if (err) {
+                    return res.status(500).json({
+                        success: false,
+                        message: err.message
+                    });
+                }
+            });
+        });
+
+        mailer.SendMail({
+            body: {
+                to_email: email,
+                subject: "Yêu cầu đặt lại mật khẩu",
+                content: `Mật khẩu mới của bạn là: ${password}`
+            }
+        }, {
+            json: (response) => {
+                if (response.success) {
+                    console.log("Email reset mật khẩu đã được gửi thành công");
+                }
+            },
+            status: (code) => ({
+                json: (response) => {
+                    console.error(`Lỗi khi gửi email reset mật khẩu: ${response.message}`);
+                }
+            })
+        });
+        res.json({
+            success: true,
+            message: "Yêu cầu đặt lại mật khẩu đã được gửi đến email của bạn"
+        });
+    }
+
 
     static ChangePassword(req, res) {
         const { username, oldPassword, newPassword } = req.body;
@@ -24,7 +107,7 @@ class PasswordController {
             });
         }
 
-        db.get(`SELECT password FROM users WHERE username = ?`, [username], (err, row) => {
+        db.get(`SELECT password_hash FROM users WHERE username = ?`, [username], (err, row) => {
             if (err) {
                 return res.status(500).json({
                     success: false,
@@ -39,7 +122,7 @@ class PasswordController {
                 });
             }
 
-            bcrypt.compare(oldPassword, row.password, (err, isMatch) => {
+            bcrypt.compare(oldPassword, row.password_hash, (err, isMatch) => {
                 if (err) {
                     return res.status(500).json({
                         success: false,
@@ -62,7 +145,7 @@ class PasswordController {
                         });
                     }
 
-                    db.run(`UPDATE users SET password = ? WHERE username = ?`, [hashedPassword, username], (err) => {
+                    db.run(`UPDATE users SET password_hash = ? WHERE username = ?`, [hashedPassword, username], (err) => {
                         if (err) {
                             return res.status(500).json({
                                 success: false,
@@ -80,28 +163,5 @@ class PasswordController {
         });
     }
 }
-
-// async function a() {
-//     const pass = await bcrypt.hash("123456789", 10);
-//     db.all("Select * from users", (err, rows) => {
-//         if (err) {
-//             console.error("Failed to query users:", err.message);
-//             return;
-//         }
-//         console.log(rows);
-//     });
-
-
-
-//     db.run("Update users set password = ?", [pass], (err) => {
-//         if (err) {
-//             console.error("Failed to update admin password:", err.message);
-//         } else {
-//             console.log("Admin password updated to '123456789'");
-//         }
-//     });
-// }
-
-// a();
 
 module.exports = PasswordController;
