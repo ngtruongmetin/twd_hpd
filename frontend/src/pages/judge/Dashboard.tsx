@@ -42,15 +42,17 @@ export default function JudgeDashboard() {
       <section className="vb-admin-section">
         <div className="vb-section-head">
           <div>
-            <p className="vb-overline">Chức năng chính</p>
             <h2>Đi tới khu vực chấm điểm</h2>
           </div>
         </div>
-        <div className="vb-admin-grid vb-admin-grid-tw">
-          <article className="vb-admin-card vb-admin-card-tw">
-            <h3>Chấm điểm bài dự thi</h3>
+        <div className="vb-province-action">
+          <article className="vb-admin-card vb-admin-card-tw vb-province-card">
+            <h3>Danh sách bài dự thi</h3>
             <p>Xem danh sách bài dự thi và thực hiện chấm điểm theo các tiêu chí của từng bảng thi.</p>
-            <Link className="vb-tw-btn-primary" to="/dashboard/judge/submissions">
+            <Link
+              className="vb-tw-btn-primary vb-province-btn"
+              to="/dashboard/judge/submissions"
+            >
               Mở trang
             </Link>
           </article>

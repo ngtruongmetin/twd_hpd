@@ -47,6 +47,7 @@ type SeasonForm = {
 }
 
 type CompetitionForm = {
+  season_id: string
   code: string
   name: string
   description: string
@@ -78,14 +79,21 @@ const initialSeasonForm: SeasonForm = {
   status: 'DRAFT',
 }
 
-const initialCompetitionForm: CompetitionForm = {
-  code: '',
-  name: '',
-  description: '',
-  max_submissions_per_participant: '3',
-  max_video_seconds: '',
-  min_video_quality: '',
-  required_aspect_ratio: '',
+function emptySeasonForm(): SeasonForm {
+  return { ...initialSeasonForm }
+}
+
+function emptyCompetitionForm(seasonId: number | null): CompetitionForm {
+  return {
+    season_id: seasonId ? String(seasonId) : '',
+    code: '',
+    name: '',
+    description: '',
+    max_submissions_per_participant: '3',
+    max_video_seconds: '',
+    min_video_quality: '',
+    required_aspect_ratio: '',
+  }
 }
 
 function formatForInput(value: string | null) {
@@ -111,53 +119,125 @@ function formatDate(value: string | null) {
   }).format(date)
 }
 
-function emptySeasonForm(): SeasonForm {
-  return { ...initialSeasonForm }
+function seasonStatusLabel(status: string) {
+  return seasonStatusOptions.find((item) => item.value === status)?.label || status
 }
 
-function emptyCompetitionForm(): CompetitionForm {
-  return { ...initialCompetitionForm }
+function normalizeError(err: unknown, fallback: string) {
+  if (axios.isAxiosError(err)) return err.response?.data?.message || fallback
+  return fallback
+}
+
+function buildSeasonForm(season: SeasonRow): SeasonForm {
+  return {
+    code: season.code || '',
+    name: season.name || '',
+    description: season.description || '',
+    submission_open_at: formatForInput(season.submission_open_at),
+    submission_close_at: formatForInput(season.submission_close_at),
+    voting_open_at: formatForInput(season.voting_open_at),
+    voting_close_at: formatForInput(season.voting_close_at),
+    top5_announce_at: formatForInput(season.top5_announce_at),
+    final_announce_at: formatForInput(season.final_announce_at),
+    status: (season.status as SeasonStatus) || 'DRAFT',
+  }
+}
+
+function buildCompetitionForm(table: CompetitionTableRow): CompetitionForm {
+  return {
+    season_id: String(table.season_id || ''),
+    code: table.code || '',
+    name: table.name || '',
+    description: table.description || '',
+    max_submissions_per_participant: String(table.max_submissions_per_participant ?? '3'),
+    max_video_seconds: table.max_video_seconds == null ? '' : String(table.max_video_seconds),
+    min_video_quality: table.min_video_quality || '',
+    required_aspect_ratio: table.required_aspect_ratio || '',
+  }
 }
 
 export default function TechAdminSeasons() {
   const [seasons, setSeasons] = useState<SeasonRow[]>([])
-  const [competitionTables, setCompetitionTables] = useState<CompetitionTableRow[]>([])
+  const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null)
   const [seasonForm, setSeasonForm] = useState<SeasonForm>(emptySeasonForm())
-  const [competitionForm, setCompetitionForm] = useState<CompetitionForm>(emptyCompetitionForm())
+  const [competitionForm, setCompetitionForm] = useState<CompetitionForm>(emptyCompetitionForm(null))
   const [editingSeasonId, setEditingSeasonId] = useState<number | null>(null)
-  const [editingCompetitionId, setEditingCompetitionId] = useState<number | null>(null)
+  const [editingTableId, setEditingTableId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingSeason, setSavingSeason] = useState(false)
-  const [savingCompetition, setSavingCompetition] = useState(false)
+  const [savingTable, setSavingTable] = useState(false)
+  const [deletingSeasonId, setDeletingSeasonId] = useState<number | null>(null)
+  const [deletingTableId, setDeletingTableId] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [seasonMessage, setSeasonMessage] = useState('')
-  const [competitionMessage, setCompetitionMessage] = useState('')
+  const [tableMessage, setTableMessage] = useState('')
 
-  async function loadData() {
+  const selectedSeason = useMemo(
+    () => seasons.find((season) => season.id === selectedSeasonId) || null,
+    [seasons, selectedSeasonId],
+  )
+
+  const selectedSeasonTables = useMemo(
+    () => tables.filter((table) => table.season_id === selectedSeason?.id),
+    [selectedSeason?.id, tables],
+  )
+
+  const stats = useMemo(() => {
+    const activeCount = seasons.filter((season) => season.status === 'OPEN_SUBMISSION').length
+    const draftCount = seasons.filter((season) => season.status === 'DRAFT').length
+    return {
+      seasons: seasons.length,
+      tables: tables.length,
+      active: activeCount,
+      draft: draftCount,
+    }
+  }, [seasons, tables])
+
+  async function loadData(preferredSeasonId?: number | null) {
     setLoading(true)
     setError('')
     try {
-      const [seasonResponse, competitionResponse] = await Promise.all([
+      const [seasonResponse, tableResponse] = await Promise.all([
         api.get('/api/v1/seasons'),
         api.get('/api/v1/competition_tables'),
       ])
 
       const seasonRows = (seasonResponse.data?.data ?? []) as SeasonRow[]
-      const competitionRows = (competitionResponse.data?.data ?? []) as CompetitionTableRow[]
+      const tableRows = (tableResponse.data?.data ?? []) as CompetitionTableRow[]
 
       setSeasons(seasonRows)
-      setCompetitionTables(competitionRows)
+      setTables(tableRows)
 
-      const firstSeason = seasonRows[0] || null
-      if (firstSeason) {
-        setSelectedSeasonId((current) => current ?? firstSeason.id)
+      if (seasonRows.length === 0) {
+        setSelectedSeasonId(null)
+        if (!editingSeasonId) {
+          setSeasonForm(emptySeasonForm())
+        }
+        if (!editingTableId) {
+          setCompetitionForm(emptyCompetitionForm(null))
+        }
+        return
+      }
+
+      const currentSeasonId = preferredSeasonId ?? selectedSeasonId ?? null
+      const currentSeason = seasonRows.find((season) => season.id === currentSeasonId) || seasonRows[0]
+
+      if (!currentSeasonId || currentSeason.id !== currentSeasonId) {
+        setSelectedSeasonId(currentSeason.id)
+        if (!editingSeasonId) {
+          setSeasonForm(buildSeasonForm(currentSeason))
+          setEditingSeasonId(currentSeason.id)
+        }
+        if (!editingTableId) {
+          setCompetitionForm((current) => ({
+            ...current,
+            season_id: String(currentSeason.id),
+          }))
+        }
       }
     } catch (err: unknown) {
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.message || 'Không tải được dữ liệu cuộc thi.'
-        : 'Không tải được dữ liệu cuộc thi.'
-      setError(message)
+      setError(normalizeError(err, 'Không tải được dữ liệu cuộc thi.'))
     } finally {
       setLoading(false)
     }
@@ -165,82 +245,61 @@ export default function TechAdminSeasons() {
 
   useEffect(() => {
     void loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const selectedSeason = useMemo(
-    () => seasons.find((season) => season.id === selectedSeasonId) || seasons[0] || null,
-    [selectedSeasonId, seasons],
-  )
-
-  const filteredCompetitionTables = useMemo(
-    () => competitionTables.filter((item) => item.season_id === selectedSeason?.id),
-    [competitionTables, selectedSeason],
-  )
-
-  useEffect(() => {
-    if (!selectedSeason) {
-      setSeasonForm(emptySeasonForm())
-      setCompetitionForm(emptyCompetitionForm())
-      setEditingSeasonId(null)
-      setEditingCompetitionId(null)
-      return
-    }
-
-    setSeasonForm({
-      code: selectedSeason.code || '',
-      name: selectedSeason.name || '',
-      description: selectedSeason.description || '',
-      submission_open_at: formatForInput(selectedSeason.submission_open_at),
-      submission_close_at: formatForInput(selectedSeason.submission_close_at),
-      voting_open_at: formatForInput(selectedSeason.voting_open_at),
-      voting_close_at: formatForInput(selectedSeason.voting_close_at),
-      top5_announce_at: formatForInput(selectedSeason.top5_announce_at),
-      final_announce_at: formatForInput(selectedSeason.final_announce_at),
-      status: (selectedSeason.status as SeasonStatus) || 'DRAFT',
-    })
-    setEditingSeasonId(selectedSeason.id)
-  }, [selectedSeason])
-
-  function pickSeason(season: SeasonRow) {
+  function selectSeason(season: SeasonRow) {
     setSelectedSeasonId(season.id)
-    setCompetitionMessage('')
+    setEditingSeasonId(season.id)
+    setSeasonForm(buildSeasonForm(season))
     setSeasonMessage('')
+    setTableMessage('')
+    if (!editingTableId) {
+      setCompetitionForm((current) => ({
+        ...current,
+        season_id: String(season.id),
+      }))
+    }
   }
 
   function startNewSeason() {
-    setSelectedSeasonId(null)
-    setSeasonForm(emptySeasonForm())
     setEditingSeasonId(null)
-    setCompetitionForm(emptyCompetitionForm())
-    setEditingCompetitionId(null)
+    setSeasonForm(emptySeasonForm())
     setSeasonMessage('')
-    setCompetitionMessage('')
+    setTableMessage('')
   }
 
-  function startNewCompetition() {
-    setCompetitionForm(emptyCompetitionForm())
-    setEditingCompetitionId(null)
-    setCompetitionMessage('')
+  function openTableEditor(table: CompetitionTableRow) {
+    const targetSeason = seasons.find((season) => season.id === table.season_id) || null
+    if (targetSeason) {
+      setSelectedSeasonId(targetSeason.id)
+      setEditingSeasonId(targetSeason.id)
+      setSeasonForm(buildSeasonForm(targetSeason))
+    }
+    setEditingTableId(table.id)
+    setCompetitionForm(buildCompetitionForm(table))
+    setSeasonMessage('')
+    setTableMessage('')
   }
 
-  function editCompetition(table: CompetitionTableRow) {
-    setCompetitionForm({
-      code: table.code || '',
-      name: table.name || '',
-      description: table.description || '',
-      max_submissions_per_participant: String(table.max_submissions_per_participant ?? '3'),
-      max_video_seconds: table.max_video_seconds == null ? '' : String(table.max_video_seconds),
-      min_video_quality: table.min_video_quality || '',
-      required_aspect_ratio: table.required_aspect_ratio || '',
-    })
-    setEditingCompetitionId(table.id)
+  function startNewTable() {
+    const seasonId = selectedSeason?.id ?? seasons[0]?.id ?? null
+    if (seasonId && selectedSeason?.id !== seasonId) {
+      const season = seasons.find((item) => item.id === seasonId)
+      if (season) {
+        setSelectedSeasonId(season.id)
+        setEditingSeasonId(season.id)
+        setSeasonForm(buildSeasonForm(season))
+      }
+    }
+    setEditingTableId(null)
+    setCompetitionForm(emptyCompetitionForm(seasonId))
+    setSeasonMessage('')
+    setTableMessage('')
   }
 
   async function handleSeasonSave(event: FormEvent) {
     event.preventDefault()
-    setSavingSeason(true)
-    setSeasonMessage('')
-    setCompetitionMessage('')
 
     const payload = {
       ...seasonForm,
@@ -252,68 +311,142 @@ export default function TechAdminSeasons() {
       final_announce_at: toIsoOrNull(seasonForm.final_announce_at),
     }
 
+    setSavingSeason(true)
+    setError('')
+    setSeasonMessage('')
+
     try {
+      let nextSeasonId: number | null = editingSeasonId
       if (editingSeasonId) {
         await api.put(`/api/v1/seasons/${editingSeasonId}`, payload)
-        setSeasonMessage('Đã cập nhật cuộc thi.')
+        setSeasonMessage('Đã cập nhật mùa thi.')
       } else {
         const response = await api.post('/api/v1/seasons', payload)
         const createdId = response.data?.data?.id
         if (createdId) {
+          nextSeasonId = createdId
           setSelectedSeasonId(createdId)
+          setEditingSeasonId(createdId)
+          setCompetitionForm((current) => ({
+            ...current,
+            season_id: String(createdId),
+          }))
         }
-        setSeasonMessage('Đã tạo cuộc thi mới.')
+        setSeasonMessage('Đã tạo mùa thi mới.')
       }
-      await loadData()
+
+      await loadData(nextSeasonId)
     } catch (err: unknown) {
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.message || 'Không lưu được cuộc thi.'
-        : 'Không lưu được cuộc thi.'
-      setSeasonMessage(message)
+      setSeasonMessage(normalizeError(err, 'Không lưu được mùa thi.'))
     } finally {
       setSavingSeason(false)
     }
   }
 
-  async function handleCompetitionSave(event: FormEvent) {
+  async function handleSeasonDelete(seasonId: number) {
+    const season = seasons.find((item) => item.id === seasonId)
+    if (!season) return
+    if (!window.confirm(`Xóa mùa thi "${season.name}"?`)) return
+
+    setDeletingSeasonId(seasonId)
+    setError('')
+    setSeasonMessage('')
+
+    try {
+      await api.delete(`/api/v1/seasons/${seasonId}`)
+      const remainingSeasons = seasons.filter((item) => item.id !== seasonId)
+      const nextSeason = remainingSeasons[0] || null
+
+      setSelectedSeasonId(nextSeason?.id ?? null)
+      if (nextSeason) {
+        setEditingSeasonId(nextSeason.id)
+        setSeasonForm(buildSeasonForm(nextSeason))
+        setCompetitionForm((current) => ({
+          ...current,
+          season_id: String(nextSeason.id),
+        }))
+      } else {
+        setEditingSeasonId(null)
+        setSeasonForm(emptySeasonForm())
+        setCompetitionForm(emptyCompetitionForm(null))
+      }
+
+      setSeasonMessage('Đã xóa mùa thi.')
+      await loadData(nextSeason?.id ?? null)
+    } catch (err: unknown) {
+      setSeasonMessage(normalizeError(err, 'Không xóa được mùa thi.'))
+    } finally {
+      setDeletingSeasonId(null)
+    }
+  }
+
+  async function handleTableSave(event: FormEvent) {
     event.preventDefault()
-    if (!selectedSeason) {
-      setCompetitionMessage('Hãy chọn một cuộc thi trước.')
+
+    const seasonId = Number(competitionForm.season_id)
+    if (!seasonId) {
+      setTableMessage('Vui lòng chọn mùa thi cho bảng thi.')
       return
     }
 
-    setSavingCompetition(true)
-    setCompetitionMessage('')
-
     const payload = {
-      season_id: selectedSeason.id,
-      code: competitionForm.code,
-      name: competitionForm.name,
-      description: competitionForm.description || null,
-      max_submissions_per_participant: Number(competitionForm.max_submissions_per_participant || 3),
+      season_id: seasonId,
+      code: competitionForm.code.trim(),
+      name: competitionForm.name.trim(),
+      description: competitionForm.description.trim() || null,
+      max_submissions_per_participant: competitionForm.max_submissions_per_participant
+        ? Number(competitionForm.max_submissions_per_participant)
+        : null,
       max_video_seconds: competitionForm.max_video_seconds ? Number(competitionForm.max_video_seconds) : null,
-      min_video_quality: competitionForm.min_video_quality || null,
-      required_aspect_ratio: competitionForm.required_aspect_ratio || null,
+      min_video_quality: competitionForm.min_video_quality.trim() || null,
+      required_aspect_ratio: competitionForm.required_aspect_ratio.trim() || null,
     }
 
+    setSavingTable(true)
+    setError('')
+    setTableMessage('')
+
     try {
-      if (editingCompetitionId) {
-        await api.put(`/api/v1/competition_tables/${editingCompetitionId}`, payload)
-        setCompetitionMessage('Đã cập nhật bảng thi.')
+      if (editingTableId) {
+        await api.put(`/api/v1/competition_tables/${editingTableId}`, payload)
+        setTableMessage('Đã cập nhật bảng thi.')
       } else {
         await api.post('/api/v1/competition_tables', payload)
-        setCompetitionMessage('Đã tạo bảng thi mới.')
+        setTableMessage('Đã tạo bảng thi mới.')
       }
-      await loadData()
-      setEditingCompetitionId(null)
-      setCompetitionForm(emptyCompetitionForm())
+
+      setEditingTableId(null)
+      setCompetitionForm(emptyCompetitionForm(seasonId))
+      setSelectedSeasonId(seasonId)
+      await loadData(seasonId)
     } catch (err: unknown) {
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.message || 'Không lưu được bảng thi.'
-        : 'Không lưu được bảng thi.'
-      setCompetitionMessage(message)
+      setTableMessage(normalizeError(err, 'Không lưu được bảng thi.'))
     } finally {
-      setSavingCompetition(false)
+      setSavingTable(false)
+    }
+  }
+
+  async function handleTableDelete(tableId: number) {
+    const table = tables.find((item) => item.id === tableId)
+    if (!table) return
+    if (!window.confirm(`Xóa bảng thi "${table.name}"?`)) return
+
+    setDeletingTableId(tableId)
+    setError('')
+    setTableMessage('')
+
+    try {
+      await api.delete(`/api/v1/competition_tables/${tableId}`)
+      if (editingTableId === tableId) {
+        setEditingTableId(null)
+        setCompetitionForm(emptyCompetitionForm(selectedSeason?.id ?? table.season_id))
+      }
+      setTableMessage('Đã xóa bảng thi.')
+      await loadData(table.season_id)
+    } catch (err: unknown) {
+      setTableMessage(normalizeError(err, 'Không xóa được bảng thi.'))
+    } finally {
+      setDeletingTableId(null)
     }
   }
 
@@ -323,57 +456,84 @@ export default function TechAdminSeasons() {
 
       <section className="vb-admin-hero vb-card vb-card-editorial">
         <div className="vb-admin-hero-copy">
-          <p className="vb-overline">Cuộc thi & cấu hình</p>
-          <h1>Thiết lập timeline, bảng thi và mốc công bố</h1>
+          <p className="vb-overline">Điều hành kỹ thuật</p>
+          <h1>CRUD mùa thi và bảng thi trên web</h1>
           <p className="vb-admin-lead">
-            Quản lý các cuộc thi, khung thời gian vận hành và danh mục bảng thi cho TECH_ADMIN.
+            Tất cả tinh chỉnh vận hành cốt lõi đều có thể làm trực tiếp trên giao diện này, không cần SSH hay sửa tay trên server.
           </p>
         </div>
 
         <aside className="vb-admin-session">
           <p className="vb-overline">Tổng quan</p>
-          <h2>{seasons.length} cuộc thi</h2>
+          <h2>{stats.seasons} mùa thi</h2>
           <dl className="vb-session-list">
             <div>
-              <dt>Đang chọn</dt>
-              <dd>{selectedSeason?.name || 'Chưa chọn cuộc thi'}</dd>
+              <dt>Tổng bảng thi</dt>
+              <dd>{stats.tables}</dd>
             </div>
             <div>
-              <dt>Bảng thi</dt>
-              <dd>{filteredCompetitionTables.length}</dd>
+              <dt>Đang mở nộp</dt>
+              <dd>{stats.active}</dd>
             </div>
           </dl>
         </aside>
       </section>
 
+      <section className="vb-tw-stats-grid vb-tw-stats-grid-2">
+        <article className="vb-season-panel">
+          <p className="vb-overline">Mùa nháp</p>
+          <strong className="vb-province-kpi-value">{stats.draft}</strong>
+          <span className="vb-province-kpi-label">Số mùa thi đang ở trạng thái bản nháp</span>
+        </article>
+        <article className="vb-season-panel">
+          <p className="vb-overline">Mùa hiện chọn</p>
+          <strong className="vb-province-kpi-value">{selectedSeason?.name || 'Chưa chọn'}</strong>
+          <span className="vb-province-kpi-label">
+            {selectedSeason ? `${selectedSeason.code} · ${seasonStatusLabel(selectedSeason.status)}` : 'Chọn mùa thi ở panel bên trái'}
+          </span>
+        </article>
+      </section>
+
       {error ? <section className="vb-account-banner is-error">{error}</section> : null}
-      {loading ? <section className="vb-account-banner">Đang tải cuộc thi...</section> : null}
+      {loading ? <section className="vb-account-banner">Đang tải dữ liệu...</section> : null}
 
       <section className="vb-season-layout">
         <aside className="vb-season-panel">
           <div className="vb-section-head is-compact">
             <div>
-              <p className="vb-overline">Danh sách cuộc thi</p>
-              <h2>Chọn cuộc thi cần cấu hình</h2>
+              <p className="vb-overline">Mùa thi</p>
+              <h2>Danh sách và thao tác</h2>
             </div>
-            <button type="button" className="vb-btn vb-btn-secondary" onClick={startNewSeason}>
-              Tạo cuộc thi mới
+            <button type="button" className="vb-tw-btn-primary" onClick={startNewSeason}>
+              Tạo mùa thi
             </button>
           </div>
 
           <div className="vb-season-list">
             {seasons.map((season) => (
-              <button
-                type="button"
+              <article
                 key={season.id}
                 className={`vb-season-item ${selectedSeason?.id === season.id ? 'is-active' : ''}`}
-                onClick={() => pickSeason(season)}
               >
                 <strong>{season.name}</strong>
                 <span>{season.code}</span>
-                <small>{season.status}</small>
+                <small>{seasonStatusLabel(season.status)}</small>
                 <small>{formatDate(season.created_at)}</small>
-              </button>
+
+                <div className="vb-tw-action-row" style={{ marginTop: 12 }}>
+                  <button type="button" className="vb-tw-btn-muted" onClick={() => selectSeason(season)}>
+                    Sửa
+                  </button>
+                  <button
+                    type="button"
+                    className="vb-tw-btn-danger"
+                    onClick={() => void handleSeasonDelete(season.id)}
+                    disabled={deletingSeasonId === season.id}
+                  >
+                    {deletingSeasonId === season.id ? 'Đang xóa...' : 'Xóa'}
+                  </button>
+                </div>
+              </article>
             ))}
           </div>
         </aside>
@@ -381,31 +541,56 @@ export default function TechAdminSeasons() {
         <section className="vb-season-panel">
           <div className="vb-section-head is-compact">
             <div>
-              <p className="vb-overline">Cấu hình cuộc thi</p>
-              <h2>Timeline và mốc công bố</h2>
+              <p className="vb-overline">Biểu mẫu mùa thi</p>
+              <h2>{editingSeasonId ? 'Chỉnh sửa mùa thi' : 'Tạo mùa thi mới'}</h2>
             </div>
-            <p className="vb-section-note">{editingSeasonId ? `Đang sửa #${editingSeasonId}` : 'Tạo cuộc thi mới'}</p>
+            <p className="vb-section-note">
+              {editingSeasonId ? `Đang sửa #${editingSeasonId}` : 'Lưu sẽ tạo record mới'}
+            </p>
           </div>
 
           <form className="vb-season-form" onSubmit={handleSeasonSave}>
             <div className="vb-form-grid">
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={seasonForm.code} onChange={(e) => setSeasonForm((prev) => ({ ...prev, code: e.target.value }))} required />
-                <label className="vb-float-label">Mã cuộc thi</label>
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={seasonForm.code}
+                  onChange={(e) => setSeasonForm((prev) => ({ ...prev, code: e.target.value }))}
+                  required
+                />
+                <label className="vb-float-label">Mã mùa thi</label>
               </div>
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={seasonForm.name} onChange={(e) => setSeasonForm((prev) => ({ ...prev, name: e.target.value }))} required />
-                <label className="vb-float-label">Tên cuộc thi</label>
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={seasonForm.name}
+                  onChange={(e) => setSeasonForm((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                />
+                <label className="vb-float-label">Tên mùa thi</label>
               </div>
               <div className="vb-field vb-full">
-                <input className="vb-input" placeholder=" " value={seasonForm.description} onChange={(e) => setSeasonForm((prev) => ({ ...prev, description: e.target.value }))} />
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={seasonForm.description}
+                  onChange={(e) => setSeasonForm((prev) => ({ ...prev, description: e.target.value }))}
+                />
                 <label className="vb-float-label">Mô tả</label>
               </div>
               <div className="vb-field">
                 <label className="vb-label">Trạng thái</label>
-                <select className="vb-select" value={seasonForm.status} onChange={(e) => setSeasonForm((prev) => ({ ...prev, status: e.target.value as SeasonStatus }))}>
+                <select
+                  className="vb-select"
+                  value={seasonForm.status}
+                  onChange={(e) => setSeasonForm((prev) => ({ ...prev, status: e.target.value as SeasonStatus }))}
+                >
                   {seasonStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -432,7 +617,12 @@ export default function TechAdminSeasons() {
                       className="vb-input"
                       placeholder=" "
                       value={seasonForm[key as keyof SeasonForm]}
-                      onChange={(e) => setSeasonForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                      onChange={(e) =>
+                        setSeasonForm((prev) => ({
+                          ...prev,
+                          [key]: e.target.value,
+                        }))
+                      }
                     />
                     <label className="vb-float-label">{label}</label>
                   </div>
@@ -443,10 +633,10 @@ export default function TechAdminSeasons() {
             {seasonMessage ? <p className="vb-form-success">{seasonMessage}</p> : null}
 
             <div className="vb-modal-actions">
-              <button type="submit" className="vb-btn vb-btn-primary" disabled={savingSeason}>
-                {savingSeason ? 'Đang lưu...' : 'Lưu cuộc thi'}
+              <button type="submit" className="vb-tw-btn-primary" disabled={savingSeason}>
+                {savingSeason ? 'Đang lưu...' : 'Lưu mùa thi'}
               </button>
-              <button type="button" className="vb-btn vb-btn-secondary" onClick={startNewSeason}>
+              <button type="button" className="vb-tw-btn-muted" onClick={startNewSeason}>
                 Làm mới
               </button>
             </div>
@@ -458,53 +648,128 @@ export default function TechAdminSeasons() {
         <div className="vb-section-head is-compact">
           <div>
             <p className="vb-overline">Bảng thi</p>
-            <h2>Thiết lập bảng thi theo cuộc thi</h2>
+            <h2>Bảng thi của mùa đang chọn</h2>
           </div>
-          <button type="button" className="vb-btn vb-btn-secondary" onClick={startNewCompetition} disabled={!selectedSeason}>
-            Tạo bảng thi
-          </button>
+          <div className="vb-tw-action-row">
+            <button type="button" className="vb-tw-btn-primary" onClick={startNewTable} disabled={!selectedSeason}>
+              Tạo bảng thi
+            </button>
+          </div>
         </div>
 
         <div className="vb-season-grid">
-          <form className="vb-season-form" onSubmit={handleCompetitionSave}>
+          <form className="vb-season-form" onSubmit={handleTableSave}>
             <div className="vb-form-grid">
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={competitionForm.code} onChange={(e) => setCompetitionForm((prev) => ({ ...prev, code: e.target.value }))} required disabled={!selectedSeason} />
+                <label className="vb-label">Mùa thi</label>
+                <select
+                  className="vb-select"
+                  value={competitionForm.season_id}
+                  onChange={(e) => setCompetitionForm((prev) => ({ ...prev, season_id: e.target.value }))}
+                  required
+                >
+                  <option value="">Chọn mùa thi</option>
+                  {seasons.map((season) => (
+                    <option key={season.id} value={season.id}>
+                      {season.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="vb-field">
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={competitionForm.code}
+                  onChange={(e) => setCompetitionForm((prev) => ({ ...prev, code: e.target.value }))}
+                  required
+                />
                 <label className="vb-float-label">Mã bảng thi</label>
               </div>
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={competitionForm.name} onChange={(e) => setCompetitionForm((prev) => ({ ...prev, name: e.target.value }))} required disabled={!selectedSeason} />
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={competitionForm.name}
+                  onChange={(e) => setCompetitionForm((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                />
                 <label className="vb-float-label">Tên bảng thi</label>
               </div>
               <div className="vb-field vb-full">
-                <input className="vb-input" placeholder=" " value={competitionForm.description} onChange={(e) => setCompetitionForm((prev) => ({ ...prev, description: e.target.value }))} disabled={!selectedSeason} />
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={competitionForm.description}
+                  onChange={(e) => setCompetitionForm((prev) => ({ ...prev, description: e.target.value }))}
+                />
                 <label className="vb-float-label">Mô tả</label>
               </div>
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={competitionForm.max_submissions_per_participant} onChange={(e) => setCompetitionForm((prev) => ({ ...prev, max_submissions_per_participant: e.target.value }))} disabled={!selectedSeason} />
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={competitionForm.max_submissions_per_participant}
+                  onChange={(e) =>
+                    setCompetitionForm((prev) => ({
+                      ...prev,
+                      max_submissions_per_participant: e.target.value,
+                    }))
+                  }
+                />
                 <label className="vb-float-label">Số bài tối đa</label>
               </div>
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={competitionForm.max_video_seconds} onChange={(e) => setCompetitionForm((prev) => ({ ...prev, max_video_seconds: e.target.value }))} disabled={!selectedSeason} />
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={competitionForm.max_video_seconds}
+                  onChange={(e) =>
+                    setCompetitionForm((prev) => ({
+                      ...prev,
+                      max_video_seconds: e.target.value,
+                    }))
+                  }
+                />
                 <label className="vb-float-label">Giới hạn video (giây)</label>
               </div>
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={competitionForm.min_video_quality} onChange={(e) => setCompetitionForm((prev) => ({ ...prev, min_video_quality: e.target.value }))} disabled={!selectedSeason} />
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={competitionForm.min_video_quality}
+                  onChange={(e) =>
+                    setCompetitionForm((prev) => ({
+                      ...prev,
+                      min_video_quality: e.target.value,
+                    }))
+                  }
+                />
                 <label className="vb-float-label">Chất lượng tối thiểu</label>
               </div>
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={competitionForm.required_aspect_ratio} onChange={(e) => setCompetitionForm((prev) => ({ ...prev, required_aspect_ratio: e.target.value }))} disabled={!selectedSeason} />
+                <input
+                  className="vb-input"
+                  placeholder=" "
+                  value={competitionForm.required_aspect_ratio}
+                  onChange={(e) =>
+                    setCompetitionForm((prev) => ({
+                      ...prev,
+                      required_aspect_ratio: e.target.value,
+                    }))
+                  }
+                />
                 <label className="vb-float-label">Tỷ lệ khung hình</label>
               </div>
             </div>
 
-            {competitionMessage ? <p className="vb-form-success">{competitionMessage}</p> : null}
+            {tableMessage ? <p className="vb-form-success">{tableMessage}</p> : null}
 
             <div className="vb-modal-actions">
-              <button type="submit" className="vb-btn vb-btn-primary" disabled={!selectedSeason || savingCompetition}>
-                {savingCompetition ? 'Đang lưu...' : 'Lưu bảng thi'}
+              <button type="submit" className="vb-tw-btn-primary" disabled={savingTable}>
+                {savingTable ? 'Đang lưu...' : editingTableId ? 'Cập nhật bảng thi' : 'Lưu bảng thi'}
               </button>
-              <button type="button" className="vb-btn vb-btn-secondary" onClick={startNewCompetition} disabled={!selectedSeason}>
+              <button type="button" className="vb-tw-btn-muted" onClick={startNewTable} disabled={!selectedSeason}>
                 Làm mới
               </button>
             </div>
@@ -512,23 +777,33 @@ export default function TechAdminSeasons() {
 
           <article className="vb-season-table-card">
             <p className="vb-overline">Danh sách bảng thi</p>
-            <h3>{selectedSeason ? selectedSeason.name : 'Chưa chọn cuộc thi'}</h3>
+            <h3>{selectedSeason ? selectedSeason.name : 'Chưa chọn mùa thi'}</h3>
             <div className="vb-season-table">
-              {filteredCompetitionTables.map((table) => (
-                <div key={table.id} className="vb-season-table-item">
-                  <div>
-                    <strong>{table.name}</strong>
-                    <span>{table.code}</span>
-                  </div>
+              {selectedSeasonTables.map((table) => (
+                <article key={table.id} className="vb-season-table-item">
+                  <strong>{table.name}</strong>
+                  <span>{table.code}</span>
                   <p>{table.description || 'Không có mô tả'}</p>
                   <small>
-                    {table.max_submissions_per_participant || 0} bài/người · {table.max_video_seconds || '—'} giây · {table.min_video_quality || '—'}
+                    {table.max_submissions_per_participant || 0} bài/người ·{' '}
+                    {table.max_video_seconds || '—'} giây · {table.min_video_quality || '—'}
                   </small>
                   <small>{formatDate(table.created_at)}</small>
-                  <button type="button" className="vb-table-link" onClick={() => editCompetition(table)}>
-                    Chỉnh sửa
-                  </button>
-                </div>
+
+                  <div className="vb-tw-action-row" style={{ marginTop: 12 }}>
+                    <button type="button" className="vb-tw-btn-muted" onClick={() => openTableEditor(table)}>
+                      Sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="vb-tw-btn-danger"
+                      onClick={() => void handleTableDelete(table.id)}
+                      disabled={deletingTableId === table.id}
+                    >
+                      {deletingTableId === table.id ? 'Đang xóa...' : 'Xóa'}
+                    </button>
+                  </div>
+                </article>
               ))}
             </div>
           </article>

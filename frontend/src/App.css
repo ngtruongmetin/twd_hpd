@@ -938,6 +938,12 @@
   color: #b91c1c;
 }
 
+.vb-account-banner.is-success {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .vb-account-workbench {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
@@ -1079,6 +1085,26 @@
 .vb-status-pill.is-locked {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.vb-status-pill.is-sent {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.vb-status-pill.is-failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.vb-status-pill.is-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.vb-status-pill.is-unknown {
+  background: #f5f5f5;
+  color: #525252;
 }
 
 .vb-account-side {

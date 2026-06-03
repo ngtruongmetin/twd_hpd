@@ -6,25 +6,21 @@ import { useAuth } from '../../context/useAuth'
 const quickActions = [
   {
     title: 'Quản lý tài khoản',
-    description: 'Tra cứu, lọc và xem chi tiết user, role, trạng thái.',
-    meta: 'users, roles',
+    description: 'Tạo, sửa, xóa tài khoản, kiểm soát role và trạng thái ngay trên web.',
+    meta: 'CRUD users',
     to: '/dashboard/tech_admin/accounts',
   },
   {
     title: 'Cuộc thi và cấu hình',
-    description: 'Thiết lập timeline, bảng thi và các mốc công bố.',
-    meta: 'seasons, competition_tables',
+    description: 'Quản lý mùa thi, timeline và bảng thi mà không cần đụng SSH.',
+    meta: 'CRUD seasons, competition_tables',
     to: '/dashboard/tech_admin/seasons',
   },
   {
-    title: 'Hệ thống email',
-    description: 'Theo dõi gửi mail, lỗi gửi và dữ liệu logging.',
-    meta: 'mail/sendto, email_logs',
-  },
-  {
-    title: 'Xuất dữ liệu',
-    description: 'Kéo báo cáo, snapshot vận hành và file export.',
-    meta: 'export',
+    title: 'Vận hành web',
+    description: 'Gửi mail, export dữ liệu và xem nhật ký email ngay trên web.',
+    meta: 'mail/sendto, export/users, email_logs',
+    to: '/dashboard/tech_admin/operations',
   },
   {
     title: 'Bài thi và kết quả',
@@ -53,7 +49,7 @@ export default function TechAdminDashboard() {
           <p className="vb-overline">Quản trị kỹ thuật</p>
           <h1>{title}</h1>
           <p className="vb-admin-lead">
-            Trung tâm điều hành cho tài khoản quản trị viên kỹ thuật.
+            Trung tâm điều hành cho tài khoản quản trị viên kỹ thuật. Mọi chỉnh sửa vận hành cốt lõi đều được thực hiện trực tiếp trên web.
           </p>
         </div>
 
@@ -80,7 +76,7 @@ export default function TechAdminDashboard() {
         <div className="vb-section-head">
           <div>
             <p className="vb-overline">Lối tắt vận hành</p>
-            <h2>Các khu vực quản trị</h2>
+            <h2>Các khu vực CRUD chính</h2>
           </div>
         </div>
 

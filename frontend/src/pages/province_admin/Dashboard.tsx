@@ -92,7 +92,7 @@ export default function ProvinceAdminDashboard() {
           <p className="vb-overline">Điều hành tỉnh thành</p>
           <h1>Dashboard QTV tỉnh</h1>
           <p className="vb-admin-lead">
-            Trang điều hành dành cho Quản trị tỉnh, tập trung theo dõi bài dự thi thuộc địa phương của mình, xem kết quả chấm điểm và tình hình tham gia cuộc thi.
+            Trang điều hành dành cho Quản trị tỉnh, thành Đoàn.
           </p>
         </div>
         <aside className="vb-admin-session">
@@ -122,14 +122,14 @@ export default function ProvinceAdminDashboard() {
         <div className="vb-section-head">
           <div>
             <p className="vb-overline">Tổng quan</p>
-            <h2>Thống kê bài dự thi của tỉnh</h2>
+            <h2>Thống kê bài dự thi của tỉnh, thành</h2>
           </div>
         </div>
         <div className="vb-tw-stats-grid vb-province-kpi-grid">
           <article className="vb-season-panel vb-province-kpi-card">
             <p className="vb-overline">Tổng bài</p>
             <strong className="vb-province-kpi-value">{kpiStats.total}</strong>
-            <span className="vb-province-kpi-label">Tổng số bài dự thi của tỉnh</span>
+            <span className="vb-province-kpi-label">Tổng số bài dự thi của tỉnh, thành</span>
           </article>
           <article className="vb-season-panel vb-province-kpi-card">
             <p className="vb-overline">CapCut</p>
@@ -148,14 +148,14 @@ export default function ProvinceAdminDashboard() {
         <div className="vb-section-head">
           <div>
             <p className="vb-overline">Chức năng chính</p>
-            <h2>Quản lý bài nộp của tỉnh</h2>
+            <h2>Quản lý bài nộp của tỉnh, thành</h2>
           </div>
         </div>
 
         <div className="vb-province-action">
           <article className="vb-admin-card vb-admin-card-tw vb-province-card">
             <h3>Theo dõi bài nộp</h3>
-            <p>Xem danh sách bài dự thi, điểm bình chọn và kết quả chấm điểm thuộc tỉnh của bạn.</p>
+            <p>Xem danh sách bài dự thi thuộc tỉnh, thành của bạn.</p>
             <Link
               className="vb-tw-btn-primary vb-province-btn"
               to="/dashboard/province_admin/submissions"

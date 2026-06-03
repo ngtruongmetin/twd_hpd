@@ -10,6 +10,7 @@ import DashboardRedirect from './pages/DashboardRedirect'
 import TechAdminDashboard from './pages/tech_admin/Dashboard'
 import TechAdminAccounts from './pages/tech_admin/Accounts'
 import TechAdminSeasons from './pages/tech_admin/Seasons'
+import TechAdminOperations from './pages/tech_admin/Operations'
 import TwAdminDashboard from './pages/tw_admin/Dashboard'
 import TwAdminUsers from './pages/tw_admin/Users'
 import TwAdminSubmissions from './pages/tw_admin/Submissions'
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/dashboard/tech_admin" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminDashboard /></RequireRole>} />
           <Route path="/dashboard/tech_admin/accounts" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminAccounts /></RequireRole>} />
           <Route path="/dashboard/tech_admin/seasons" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminSeasons /></RequireRole>} />
+          <Route path="/dashboard/tech_admin/operations" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminOperations /></RequireRole>} />
           <Route path="/dashboard/tw_admin" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminDashboard /></RequireRole>} />
           <Route path="/dashboard/tw_admin/users" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminUsers /></RequireRole>} />
           <Route path="/dashboard/tw_admin/submissions" element={<RequireRole allowedRoles={['TW_ADMIN']}><TwAdminSubmissions /></RequireRole>} />

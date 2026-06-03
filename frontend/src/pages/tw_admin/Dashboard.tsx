@@ -6,12 +6,12 @@ import { useAuth } from '../../context/useAuth'
 const quickActions = [
   {
     title: 'Quản lý người dùng',
-    description: 'Xem thông tin chính, tạo tài khoản PROVINCE_ADMIN/JUDGE, xóa tài khoản.',
+    description: 'Xem thông tin chính, tạo tài khoản, xóa tài khoản.',
     to: '/dashboard/tw_admin/users',
   },
   {
     title: 'Quản lý bài nộp',
-    description: 'Thống kê theo bảng thi, tỉnh và phường; xem và xóa bài nộp.',
+    description: 'Thống kê theo bảng thi, tỉnh; xem và xóa bài nộp.',
     to: '/dashboard/tw_admin/submissions',
   },
   {
