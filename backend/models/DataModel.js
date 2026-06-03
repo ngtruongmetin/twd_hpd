@@ -109,7 +109,7 @@ class DataModel {
 
         res.setHeader(
             "Content-Disposition",
-            'attachment; filename="Thongkecuocthi.xlsx"'
+            `attachment; filename="${data.fileName || "Thongkecuocthi.xlsx"}"`
         );
 
         await workbook.xlsx.write(res);

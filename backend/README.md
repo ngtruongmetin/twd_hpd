@@ -114,8 +114,51 @@ Server chạy trên port `3000`
 
 ### /api/v1/export
 - Phương thức: POST
-- Mô tả: Xuất dữ liệu
+- Mô tả: Xuất file Excel từ body do client gửi.
 - Yêu cầu: Không bắt buộc đăng nhập (theo cấu hình hiện tại)
+- Body: định dạng `sheetName`, `fileName`, `matrix.columns`, `matrix.rows`
+
+### /api/v1/export/users
+- Phương thức: POST
+- Mô tả: Xuất Excel danh sách tài khoản.
+- Body:
+  - `filter`: mảng điều kiện lọc, ví dụ `[{ "key": "province_name", "operator": "=", "value": "Hồ Chí Minh" }]`
+- Hỗ trợ lọc theo: `username`, `email`, `phone`, `province_name`, `ward_name`, `school_name`, `work_unit`, `role_id`, `status`
+
+### /api/v1/export/submissions
+- Phương thức: POST
+- Mô tả: Xuất Excel danh sách bài thi.
+- Body:
+  - `filter`: mảng điều kiện lọc
+- Hỗ trợ lọc theo: `status`, `season_id`, `competition_table_id`, `author_province_name`, `author_school_name`, `submitted_by_user_id`
+
+### /api/v1/export/scores
+- Phương thức: POST
+- Mô tả: Xuất Excel dữ liệu điểm giám khảo.
+- Body:
+  - `filter`: mảng điều kiện lọc
+- Hỗ trợ lọc theo: `submission_id`, `judge_user_id`, `criterion_id`
+
+### /api/v1/export/scoreboard
+- Phương thức: POST
+- Mô tả: Xuất Excel bảng điểm tổng hợp.
+- Body:
+  - `filter`: mảng điều kiện lọc
+- Hỗ trợ lọc theo: `season_id`, `competition_table_id`, `author_province_name`, `status`
+
+### /api/v1/export/participant-stats
+- Phương thức: POST
+- Mô tả: Xuất Excel thống kê số lượng người tham gia theo tỉnh.
+- Body:
+  - `filter`: mảng điều kiện lọc
+- Hỗ trợ lọc theo: `province_name`, `status`, `role_id`
+
+### /api/v1/export/submission-stats
+- Phương thức: POST
+- Mô tả: Xuất Excel thống kê số lượng bài thi theo tỉnh và trạng thái.
+- Body:
+  - `filter`: mảng điều kiện lọc
+- Hỗ trợ lọc theo: `author_province_name`, `status`, `competition_table_id`, `season_id`
 
 ## Resource APIs chung
 Các module sau đều dùng cấu trúc cơ bản CRUD:
