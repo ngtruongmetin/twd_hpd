@@ -179,6 +179,9 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
 
 ### api/v1/password/forgot 
 
+- Method: POST
+- Các trường thông tin: username, email
+
 ## Judge Scoring APIs
 
 ### /api/v1/judge_scores
@@ -255,3 +258,11 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
   ]
 }
 ```
+
+
+## Gooogle Drive API
+
+### /api/v1/google_drive/check_public
+
+- Method: POST
+- Trường thông tin: FolderID 

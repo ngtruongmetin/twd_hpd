@@ -121,6 +121,7 @@ app.use("/api/v1/seasons", require("./modules/seasons/routes"));
 app.use("/api/v1/competition_tables", require("./modules/competition_tables/routes"));
 app.use("/api/v1/scoring_criteria", require("./modules/scoring_criteria/routes"));
 app.use("/api/v1/judge_scores", require("./modules/judge_scores/routes"));
+app.use("/api/v1/google_drive", require("./modules/google_drive/routes"));
 app.use("/api/v1/voting_snapshots", require("./modules/voting_snapshots/routes"));
 app.use("/api/v1/vote_rankings", require("./modules/vote_rankings/routes"));
 app.use("/api/v1/submission_results", require("./modules/submission_results/routes"));
