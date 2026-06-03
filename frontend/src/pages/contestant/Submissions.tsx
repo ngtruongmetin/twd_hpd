@@ -329,7 +329,7 @@ export default function ContestantSubmissions() {
         return
       }
 
-      setError('Bạn cần hoàn thiện hồ sơ (bao gồm link Facebook hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.')
+      setError('Bạn cần hoàn thiện hồ sơ (bao gồm link bài đăng thẻ chiến sỹ Hoa phượng đỏ hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.')
       return
     }
 
@@ -593,7 +593,7 @@ export default function ContestantSubmissions() {
 
             {!profileReady ? (
               <p className="vb-form-error">
-                Bạn cần hoàn thiện hồ sơ (bao gồm link Facebook hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.
+                Bạn cần hoàn thiện hồ sơ (bao gồm link bài đăng thẻ chiến sỹ Hoa phượng đỏ hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.
               </p>
             ) : null}
             {success ? <p className="vb-form-success vb-form-submit-success">{success}</p> : null}
