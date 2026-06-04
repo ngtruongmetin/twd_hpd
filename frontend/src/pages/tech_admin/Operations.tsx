@@ -195,11 +195,16 @@ export default function TechAdminOperations() {
         },
       )
 
+      const contentType = response.headers?.['content-type']
+      const mimeType = typeof contentType === 'string'
+        ? contentType
+        : Array.isArray(contentType) && typeof contentType[0] === 'string'
+          ? contentType[0]
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
       downloadBlob(
         new Blob([response.data], {
-          type:
-            response.headers?.['content-type'] ||
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          type: mimeType,
         }),
         getExportFileName(exportTarget),
       )
