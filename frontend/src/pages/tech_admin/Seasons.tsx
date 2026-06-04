@@ -119,9 +119,9 @@ function formatDate(value: string | null) {
   }).format(date)
 }
 
-function seasonStatusLabel(status: string) {
-  return seasonStatusOptions.find((item) => item.value === status)?.label || status
-}
+// function seasonStatusLabel(status: string) {
+//   return seasonStatusOptions.find((item) => item.value === status)?.label || status
+// }
 
 function isSubmissionOpenNow(season?: SeasonRow | null) {
   if (!season) return false

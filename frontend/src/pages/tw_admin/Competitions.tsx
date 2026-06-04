@@ -63,9 +63,9 @@ const seasonStatusOptions: { value: SeasonStatus; label: string }[] = [
   { value: 'ARCHIVED', label: 'Lưu trữ' },
 ]
 
-function statusLabel(status: string) {
-  return seasonStatusOptions.find((item) => item.value === status)?.label || status
-}
+// function statusLabel(status: string) {
+//   return seasonStatusOptions.find((item) => item.value === status)?.label || status
+// }
 
 function isSubmissionOpenNow(season?: SeasonRow | null) {
   if (!season) return false

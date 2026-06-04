@@ -35,7 +35,7 @@ const dashboardTitleByRole: Record<RoleCode, string> = {
   CONTESTANT: 'Dashboard Thí sinh',
 }
 
-export function isProfileCompleted(profileCompleted?: boolean | number | null) {
+export function isProfileCompleted(profileCompleted?: boolean | number | null | string) {
   return !(profileCompleted === false || profileCompleted === 0 || profileCompleted === '0')
 }
 
