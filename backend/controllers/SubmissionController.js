@@ -269,22 +269,21 @@ function isSeasonSubmissionOpen(season) {
         };
     }
 
-    const status = String(season.status || "").toUpperCase();
-    if (status !== "OPEN_SUBMISSION") {
+    const now = Date.now();
+    const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null;
+    const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null;
+
+    if (!openAt && !closeAt) {
         return {
             open: false,
             message: "Cuộc thi này đã đóng nộp bài",
         };
     }
 
-    const now = Date.now();
-    const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null;
-    const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null;
-
     if (openAt && now < openAt) {
         return {
             open: false,
-            message: "Cuộc thi này chưa mở nộp bài",
+            message: "Cuộc thi này đã đóng nộp bài",
         };
     }
 
@@ -299,6 +298,59 @@ function isSeasonSubmissionOpen(season) {
         open: true,
         message: "",
     };
+}
+
+function isFacebookLink(value) {
+    if (!value) {
+        return false;
+    }
+
+    try {
+        const parsed = new URL(value);
+        return /(^|\.)facebook\.com$/i.test(parsed.hostname);
+    } catch {
+        return false;
+    }
+}
+
+function getContestantProfileIssues(user) {
+    const issues = [];
+
+    if (!String(user?.email || "").trim()) {
+        issues.push({ key: "email", label: "email" });
+    }
+
+    if (!String(user?.phone || "").trim()) {
+        issues.push({ key: "phone", label: "số điện thoại" });
+    }
+
+    if (!String(user?.province_name || "").trim()) {
+        issues.push({ key: "province_name", label: "tỉnh/thành" });
+    }
+
+    if (!String(user?.ward_name || "").trim()) {
+        issues.push({ key: "ward_name", label: "phường/xã" });
+    }
+
+    if (!isFacebookLink(user?.facebook_post_url || "")) {
+        issues.push({ key: "facebook_post_url", label: "link Facebook thẻ chiến sĩ Hoa phượng đỏ" });
+    }
+
+    return issues;
+}
+
+function formatContestantProfileIssueMessage(issues) {
+    if (!issues || issues.length === 0) {
+        return "";
+    }
+
+    const labels = issues.map((item) => item.label);
+    if (labels.length === 1) {
+        return `Bạn cần bổ sung ${labels[0]} trước khi nộp bài.`;
+    }
+
+    const lastLabel = labels.pop();
+    return `Bạn cần bổ sung ${labels.join(", ")} và ${lastLabel} trước khi nộp bài.`;
 }
 
 function getSubmissionErrorMessage(error) {
@@ -505,6 +557,23 @@ class SubmissionController {
             }
 
             const user = req.session.user;
+            const profileIssues = getContestantProfileIssues(user);
+            if (profileIssues.length > 0) {
+                const message = formatContestantProfileIssueMessage(profileIssues);
+                console.warn("[SubmissionController] Contestant profile incomplete:", {
+                    username: user?.username || null,
+                    missing_fields: profileIssues.map((item) => item.key),
+                });
+
+                return res.status(400).json({
+                    success: false,
+                    message,
+                    data: {
+                        missing_fields: profileIssues.map((item) => item.key),
+                    },
+                });
+            }
+
             const authorSnapshot = {
                 full_name: user.full_name || "",
                 province_name: user.province_name || null,

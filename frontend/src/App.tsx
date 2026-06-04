@@ -6,6 +6,7 @@ import RequireRole from './components/RequireRole'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import CompleteProfile from './pages/CompleteProfile'
 import DashboardRedirect from './pages/DashboardRedirect'
 import TechAdminDashboard from './pages/tech_admin/Dashboard'
 import TechAdminAccounts from './pages/tech_admin/Accounts'
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/complete-profile" element={<RequireAuth><CompleteProfile /></RequireAuth>} />
           <Route path="/dashboard" element={<RequireAuth><DashboardRedirect /></RequireAuth>} />
           <Route path="/dashboard/tech_admin" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminDashboard /></RequireRole>} />
           <Route path="/dashboard/tech_admin/accounts" element={<RequireRole allowedRoles={['TECH_ADMIN']}><TechAdminAccounts /></RequireRole>} />

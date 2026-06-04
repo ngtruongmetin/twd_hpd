@@ -67,6 +67,23 @@ function statusLabel(status: string) {
   return seasonStatusOptions.find((item) => item.value === status)?.label || status
 }
 
+function isSubmissionOpenNow(season?: SeasonRow | null) {
+  if (!season) return false
+
+  const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null
+  const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null
+  if (!openAt && !closeAt) return false
+
+  const now = Date.now()
+  if (openAt && now < openAt) return false
+  if (closeAt && now > closeAt) return false
+  return true
+}
+
+function currentSubmissionStateLabel(season?: SeasonRow | null) {
+  return isSubmissionOpenNow(season) ? 'Đang mở nộp bài' : 'Đang đóng nộp bài'
+}
+
 function formatForInput(value: string | null) {
   if (!value) return ''
   const date = new Date(value)
@@ -201,7 +218,7 @@ export default function TwAdminCompetitions() {
           <div className="vb-season-list">
             {seasons.map((season) => (
               <button key={season.id} type="button" className={`vb-season-item ${selectedSeason?.id === season.id ? 'is-active' : ''}`} onClick={() => setSelectedSeasonId(season.id)}>
-                <strong>{season.name}</strong><span>{season.code}</span><small>{statusLabel(season.status)}</small>
+                <strong>{season.name}</strong><span>{season.code}</span><small>{currentSubmissionStateLabel(season)}</small>
               </button>
             ))}
           </div>

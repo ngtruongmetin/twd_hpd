@@ -10,6 +10,7 @@ type SubmissionRow = {
   video_url: string | null
   author_full_name: string | null
   author_province_name: string | null
+  author_ward_name: string | null
 }
 
 type CompetitionTableRow = {
@@ -40,6 +41,7 @@ export default function TwAdminSubmissions() {
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [results, setResults] = useState<ResultRow[]>([])
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -83,15 +85,42 @@ export default function TwAdminSubmissions() {
     return map
   }, [tables])
 
-  const filteredRows = useMemo(
-    () =>
-      submissions.filter((row) => {
-        const tableOk = tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter
-        const provinceOk = provinceFilter === 'ALL' || row.author_province_name === provinceFilter
-        return tableOk && provinceOk
-      }),
-    [submissions, tableFilter, provinceFilter],
+  const tableOptions = useMemo(
+    () => [...tables].sort((a, b) => a.name.localeCompare(b.name, 'vi')),
+    [tables],
   )
+
+  const provinceOptions = useMemo(() => {
+    const map = new Map<string, number>()
+
+    submissions.forEach((row) => {
+      const label = row.author_province_name?.trim()
+      if (!label) return
+      map.set(label, (map.get(label) || 0) + 1)
+    })
+
+    return Array.from(map.entries())
+      .map(([label, total]) => ({ label, total }))
+      .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'vi'))
+  }, [submissions])
+
+  const filteredRows = useMemo(() => {
+    const filteredBySelections = submissions.filter((row) => {
+      const tableOk = tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter
+      const provinceOk = provinceFilter === 'ALL' || row.author_province_name === provinceFilter
+      return tableOk && provinceOk
+    })
+
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return filteredBySelections
+
+    return filteredBySelections.filter((row) => {
+      const tableName = tableNameById.get(row.competition_table_id || 0) || ''
+      return [row.title, row.author_full_name, row.author_province_name, row.author_ward_name, tableName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery))
+    })
+  }, [submissions, tableFilter, provinceFilter, query, tableNameById])
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -99,29 +128,25 @@ export default function TwAdminSubmissions() {
 
   useEffect(() => {
     setPage(1)
-  }, [tableFilter, provinceFilter])
+  }, [tableFilter, provinceFilter, query])
 
-  const tableStats = useMemo(() => {
-    const countMap = new Map<number, number>()
-    submissions.forEach((row) => {
-      const key = row.competition_table_id || 0
-      countMap.set(key, (countMap.get(key) || 0) + 1)
-    })
-    return tables
-      .map((table) => ({ id: table.id, name: table.name, total: countMap.get(table.id) || 0 }))
-      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'vi'))
-  }, [submissions, tables])
+  const kpiStats = useMemo(() => {
+    const regionSet = new Set<string>()
 
-  const provinceStats = useMemo(() => {
-    const map = new Map<string, number>()
-    submissions.forEach((row) => {
-      const key = row.author_province_name || 'Chưa rõ tỉnh/thành'
-      map.set(key, (map.get(key) || 0) + 1)
+    filteredRows.forEach((row) => {
+      const value =
+        provinceFilter === 'ALL'
+          ? row.author_province_name?.trim()
+          : row.author_ward_name?.trim()
+
+      if (value) regionSet.add(value)
     })
-    return Array.from(map.entries())
-      .map(([label, total]) => ({ label, total }))
-      .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'vi'))
-  }, [submissions])
+
+    return {
+      totalSubmissions: filteredRows.length,
+      uniqueRegions: regionSet.size,
+    }
+  }, [filteredRows, provinceFilter])
 
   async function handleDeleteSubmission(id: number) {
     if (!window.confirm(`Xóa bài nộp #${id}?`)) return
@@ -146,7 +171,9 @@ export default function TwAdminSubmissions() {
         <div className="vb-admin-hero-copy">
           <p className="vb-overline">Điều hành trung ương</p>
           <h1>Quản lý bài nộp</h1>
-          <p className="vb-admin-lead">Lọc theo bảng thi và tỉnh/thành, xem điểm và quản trị danh sách bài nộp.</p>
+          <p className="vb-admin-lead">
+            Lọc theo bảng thi, tỉnh/thành và tìm kiếm theo tiêu đề, người nộp, phường, bảng thi.
+          </p>
         </div>
       </section>
 
@@ -155,21 +182,23 @@ export default function TwAdminSubmissions() {
       {loading ? <section className="vb-account-banner">Đang tải dữ liệu...</section> : null}
 
       <section className="vb-tw-stats-grid vb-tw-stats-grid-2">
-        <article className="vb-season-panel">
-          <p className="vb-overline">Theo bảng thi</p>
-          <div className="vb-tw-stat-list">
-            {tableStats.map((item) => (
-              <div key={item.id} className="vb-tw-stat-item"><span>{item.name}</span><strong>{item.total}</strong></div>
-            ))}
-          </div>
+        <article className="vb-season-panel vb-province-kpi-card">
+          <p className="vb-overline">Bài nộp</p>
+          <strong className="vb-province-kpi-value">{kpiStats.totalSubmissions}</strong>
+          <span className="vb-province-kpi-label">
+            Số bài dự thi theo bộ lọc hiện tại.
+          </span>
         </article>
-        <article className="vb-season-panel">
-          <p className="vb-overline">Theo tỉnh/thành</p>
-          <div className="vb-tw-stat-list">
-            {provinceStats.map((item) => (
-              <div key={item.label} className="vb-tw-stat-item"><span>{item.label}</span><strong>{item.total}</strong></div>
-            ))}
-          </div>
+        <article className="vb-season-panel vb-province-kpi-card">
+          <p className="vb-overline">
+            {provinceFilter === 'ALL' ? 'Tỉnh/thành tham gia' : 'Phường tham gia'}
+          </p>
+          <strong className="vb-province-kpi-value">{kpiStats.uniqueRegions}</strong>
+          <span className="vb-province-kpi-label">
+            {provinceFilter === 'ALL'
+              ? 'Số tỉnh/thành tham gia.'
+              : 'Số phường tham gia.'}
+          </span>
         </article>
       </section>
 
@@ -182,23 +211,48 @@ export default function TwAdminSubmissions() {
           <p className="vb-section-note">{filteredRows.length} bài nộp khớp điều kiện hiện tại.</p>
         </div>
 
-        <div className="vb-account-toolbar">
-          <div className="vb-account-filters">
+        <div className="vb-tw-toolbar-row">
+          <div className="vb-account-search">
+            <label htmlFor="tw-submission-search">Tìm kiếm</label>
+            <input
+              id="tw-submission-search"
+              className="vb-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tiêu đề, người nộp, tỉnh/thành, phường, bảng thi..."
+            />
+          </div>
+
+          <div className="vb-account-filters" style={{ gridColumn: 'auto' }}>
             <div>
               <label htmlFor="tw-table-filter">Bảng thi</label>
-              <select id="tw-table-filter" className="vb-select" value={tableFilter} onChange={(e) => setTableFilter(e.target.value)}>
+              <select
+                id="tw-table-filter"
+                className="vb-select"
+                value={tableFilter}
+                onChange={(e) => setTableFilter(e.target.value)}
+              >
                 <option value="ALL">Tất cả bảng thi</option>
-                {tableStats.map((table) => (
-                  <option key={table.id} value={table.id}>{table.name}</option>
+                {tableOptions.map((table) => (
+                  <option key={table.id} value={table.id}>
+                    {table.name}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
               <label htmlFor="tw-province-filter">Tỉnh/Thành</label>
-              <select id="tw-province-filter" className="vb-select" value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)}>
+              <select
+                id="tw-province-filter"
+                className="vb-select"
+                value={provinceFilter}
+                onChange={(e) => setProvinceFilter(e.target.value)}
+              >
                 <option value="ALL">Tất cả tỉnh/thành</option>
-                {provinceStats.filter((item) => item.label !== 'Chưa rõ tỉnh/thành').map((item) => (
-                  <option key={item.label} value={item.label}>{item.label}</option>
+                {provinceOptions.map((item) => (
+                  <option key={item.label} value={item.label}>
+                    {item.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -227,11 +281,29 @@ export default function TwAdminSubmissions() {
                     <td>{tableNameById.get(row.competition_table_id || 0) || 'N/A'}</td>
                     <td>{row.author_full_name || 'N/A'}</td>
                     <td>{row.title || 'N/A'}</td>
-                    <td>{row.video_url ? <a className="vb-tw-btn-link" href={row.video_url} target="_blank" rel="noreferrer">Xem bài thi</a> : 'N/A'}</td>
+                    <td>
+                      {row.video_url ? (
+                        <a className="vb-tw-btn-link" href={row.video_url} target="_blank" rel="noreferrer">
+                          Xem bài thi
+                        </a>
+                      ) : (
+                        'N/A'
+                      )}
+                    </td>
                     <td>{toNumber(result?.vote_converted_points).toFixed(2)}</td>
                     <td>{toNumber(result?.judge_total_points).toFixed(2)}</td>
-                    <td><strong>{toNumber(result?.final_points).toFixed(2)}</strong></td>
-                    <td><button type="button" className="vb-tw-btn-danger" onClick={() => void handleDeleteSubmission(row.id)}>{deletingId === row.id ? 'Đang xóa...' : 'Xóa'}</button></td>
+                    <td>
+                      <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="vb-tw-btn-danger"
+                        onClick={() => void handleDeleteSubmission(row.id)}
+                      >
+                        {deletingId === row.id ? 'Đang xóa...' : 'Xóa'}
+                      </button>
+                    </td>
                   </tr>
                 )
               })}
@@ -240,9 +312,23 @@ export default function TwAdminSubmissions() {
         </div>
 
         <div className="vb-tw-pagination">
-          <button type="button" className="vb-tw-btn-muted" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trang trước</button>
+          <button
+            type="button"
+            className="vb-tw-btn-muted"
+            disabled={safePage <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Trang trước
+          </button>
           <span>Trang {safePage}/{totalPages}</span>
-          <button type="button" className="vb-tw-btn-muted" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Trang sau</button>
+          <button
+            type="button"
+            className="vb-tw-btn-muted"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Trang sau
+          </button>
         </div>
       </section>
     </main>

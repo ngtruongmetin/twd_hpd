@@ -15,6 +15,8 @@ export type SessionUser = {
   work_unit?: string | null
   organization_position?: string | null
   facebook_post_url?: string | null
+  google_sub?: string | null
+  profile_completed?: boolean | number | null
 }
 
 const dashboardPathByRole: Record<RoleCode, string> = {
@@ -33,9 +35,17 @@ const dashboardTitleByRole: Record<RoleCode, string> = {
   CONTESTANT: 'Dashboard Thí sinh',
 }
 
-export function getDashboardPathForRole(roleCode?: string | null) {
+export function isProfileCompleted(profileCompleted?: boolean | number | null) {
+  return !(profileCompleted === false || profileCompleted === 0 || profileCompleted === '0')
+}
+
+export function getDashboardPathForRole(roleCode?: string | null, profileCompleted?: boolean | number | null) {
   if (!roleCode) {
     return '/dashboard/contestant'
+  }
+
+  if (roleCode === 'CONTESTANT' && !isProfileCompleted(profileCompleted)) {
+    return '/complete-profile'
   }
 
   return dashboardPathByRole[roleCode as RoleCode] ?? '/dashboard/contestant'

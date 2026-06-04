@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import { getDashboardPathForRole, type RoleCode } from '../auth/role'
+import { getDashboardPathForRole, isProfileCompleted, type RoleCode } from '../auth/role'
 import { useAuth } from '../context/useAuth'
 
 type RequireRoleProps = {
@@ -27,8 +27,12 @@ export default function RequireRole({ allowedRoles, children }: RequireRoleProps
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
+  if (user.role_code === 'CONTESTANT' && !isProfileCompleted(user.profile_completed)) {
+    return <Navigate to="/complete-profile" replace />
+  }
+
   if (!user.role_code || !allowedRoles.includes(user.role_code as RoleCode)) {
-    return <Navigate to={getDashboardPathForRole(user.role_code)} replace />
+    return <Navigate to={getDashboardPathForRole(user.role_code, user.profile_completed)} replace />
   }
 
   return children

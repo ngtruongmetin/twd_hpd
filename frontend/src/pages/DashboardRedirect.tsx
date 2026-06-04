@@ -5,5 +5,5 @@ import { useAuth } from '../context/useAuth'
 export default function DashboardRedirect() {
   const { user } = useAuth()
 
-  return <Navigate to={getDashboardPathForRole(user?.role_code)} replace />
+  return <Navigate to={getDashboardPathForRole(user?.role_code, user?.profile_completed)} replace />
 }

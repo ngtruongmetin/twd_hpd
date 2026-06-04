@@ -107,7 +107,7 @@ export default function Navbar() {
     }
   }
 
-  const dashboardPath = getDashboardPathForRole(user?.role_code)
+  const dashboardPath = getDashboardPathForRole(user?.role_code, user?.profile_completed)
 
   return (
     <header className="vb-nav">

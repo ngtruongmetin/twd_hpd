@@ -7,7 +7,7 @@ export default function Landing() {
   const { user, loading } = useAuth()
   const isLoggedIn = !loading && !!user
   const actionLabel = isLoggedIn ? 'Truy cập vào Dashboard' : 'Đăng nhập hệ thống'
-  const actionPath = isLoggedIn ? getDashboardPathForRole(user?.role_code) : '/login'
+  const actionPath = isLoggedIn ? getDashboardPathForRole(user?.role_code, user?.profile_completed) : '/login'
 
   return (
     <main className="vb-page">

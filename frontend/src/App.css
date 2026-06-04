@@ -340,6 +340,7 @@
 .vb-form-submit-error { margin-top: 12px; }
 .vb-form-success { color: #16a34a; margin: 0 0 12px; }
 .vb-auth-helper { margin: 10px 0 0; text-align: center; }
+.vb-auth-helper-spaced { margin-bottom: 28px; }
 .vb-auth-helper a { color: #0b2a5b; font-weight: 700; }
 
 @media (max-width: 1280px) {

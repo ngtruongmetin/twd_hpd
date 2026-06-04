@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/api'
 import ProvinceSelector, { type ProvinceOption } from '../components/ProvinceSelector'
@@ -26,6 +26,11 @@ export default function Register() {
   const [success, setSuccess] = useState('')
   const [selectedProvince, setSelectedProvince] = useState<ProvinceOption | null>(null)
   const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
+
+  const googleAuthUrl = useMemo(() => {
+    const baseUrl = api.defaults.baseURL || 'http://localhost:3000'
+    return new URL('/api/v1/auth/google', baseUrl).toString()
+  }, [])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -68,7 +73,7 @@ export default function Register() {
             <div className="vb-field"><input id="password" type="password" className="vb-input" placeholder=" " value={form.password} onChange={(e) => setForm((v) => ({ ...v, password: e.target.value }))} required /><label className="vb-float-label" htmlFor="password">Mật khẩu <span className="vb-required">*</span></label></div>
             <div className="vb-field"><input id="full_name" className="vb-input" placeholder=" " value={form.full_name} onChange={(e) => setForm((v) => ({ ...v, full_name: e.target.value }))} required /><label className="vb-float-label" htmlFor="full_name">Họ và tên <span className="vb-required">*</span></label></div>
             <div className="vb-field"><input id="email" type="email" className="vb-input" placeholder=" " value={form.email} onChange={(e) => setForm((v) => ({ ...v, email: e.target.value }))} required /><label className="vb-float-label" htmlFor="email">Email <span className="vb-required">*</span></label></div>
-            <div className="vb-field"><input id="phone" className="vb-input" placeholder=" " value={form.phone} onChange={(e) => setForm((v) => ({ ...v, phone: e.target.value }))} /><label className="vb-float-label" htmlFor="phone">Số điện thoại</label></div>
+            <div className="vb-field"><input id="phone" className="vb-input" placeholder=" " value={form.phone} onChange={(e) => setForm((v) => ({ ...v, phone: e.target.value }))} required /><label className="vb-float-label" htmlFor="phone">Số điện thoại <span className="vb-required">*</span></label></div>
             <div className="vb-field"><input id="school_name" className="vb-input" placeholder=" " value={form.school_name} onChange={(e) => setForm((v) => ({ ...v, school_name: e.target.value }))} /><label className="vb-float-label" htmlFor="school_name">Trường học</label></div>
 
             <ProvinceSelector
@@ -98,7 +103,13 @@ export default function Register() {
 
           <div className="vb-auth-divider"><span>hoặc</span></div>
 
-          <button type="button" className="vb-btn vb-btn-google vb-btn-full">
+          <button
+            type="button"
+            className="vb-btn vb-btn-google vb-btn-full"
+            onClick={() => {
+              window.location.href = googleAuthUrl
+            }}
+          >
             <svg className="vb-google-icon" viewBox="0 0 48 48" aria-hidden="true">
               <path fill="#FFC107" d="M43.61 20.08H42V20H24v8h11.3c-1.65 4.66-6.08 8-11.3 8-6.63 0-12-5.37-12-12s5.37-12 12-12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.04 6.05 29.27 4 24 4 12.96 4 4 12.96 4 24s8.96 20 20 20 20-8.96 20-20c0-1.34-.14-2.65-.39-3.92z" />
               <path fill="#FF3D00" d="M6.31 14.69l6.57 4.82C14.66 15.11 18.96 12 24 12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.04 6.05 29.27 4 24 4 16.32 4 9.59 8.34 6.31 14.69z" />

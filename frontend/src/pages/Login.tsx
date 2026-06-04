@@ -1,16 +1,24 @@
 import axios from 'axios'
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { getDashboardPathForRole } from '../auth/role'
 import { api } from '../api/api'
 import { useAuth } from '../context/useAuth'
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setUser } = useAuth()
   const [form, setForm] = useState({ username: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const googleAuthUrl = useMemo(() => {
+    const baseUrl = api.defaults.baseURL || 'http://localhost:3000'
+    return new URL('/api/v1/auth/google', baseUrl).toString()
+  }, [])
+
+  const queryError = searchParams.get('error')
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -20,7 +28,7 @@ export default function Login() {
       const response = await api.post('/api/v1/auth/login', form)
       const user = response.data?.data ?? null
       setUser(user)
-      navigate(getDashboardPathForRole(user?.role_code), { replace: true })
+      navigate(getDashboardPathForRole(user?.role_code, user?.profile_completed), { replace: true })
     } catch (err: unknown) {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
@@ -63,7 +71,7 @@ export default function Login() {
             <label className="vb-float-label" htmlFor="password">Mật khẩu</label>
           </div>
 
-          {error && <p className="vb-form-error">{error}</p>}
+          {(error || queryError) && <p className="vb-form-error">{error || queryError}</p>}
 
           <button type="submit" className="vb-btn vb-btn-primary vb-btn-full" disabled={loading}>
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
@@ -71,7 +79,13 @@ export default function Login() {
 
           <div className="vb-auth-divider"><span>hoặc</span></div>
 
-          <button type="button" className="vb-btn vb-btn-google vb-btn-full">
+          <button
+            type="button"
+            className="vb-btn vb-btn-google vb-btn-full"
+            onClick={() => {
+              window.location.href = googleAuthUrl
+            }}
+          >
             <svg className="vb-google-icon" viewBox="0 0 48 48" aria-hidden="true">
               <path fill="#FFC107" d="M43.61 20.08H42V20H24v8h11.3c-1.65 4.66-6.08 8-11.3 8-6.63 0-12-5.37-12-12s5.37-12 12-12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.04 6.05 29.27 4 24 4 12.96 4 4 12.96 4 24s8.96 20 20 20 20-8.96 20-20c0-1.34-.14-2.65-.39-3.92z" />
               <path fill="#FF3D00" d="M6.31 14.69l6.57 4.82C14.66 15.11 18.96 12 24 12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.04 6.05 29.27 4 24 4 16.32 4 9.59 8.34 6.31 14.69z" />

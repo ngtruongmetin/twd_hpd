@@ -7,6 +7,7 @@ class ExportController {
 
         const clauses = [];
         const params = [];
+        const allowedOperators = new Set(["=", "!=", "<>", ">", ">=", "<", "<=", "LIKE", "IN"]);
 
         filter.forEach((item) => {
             if (!item || !item.key || item.value == null) return;
@@ -15,15 +16,17 @@ class ExportController {
             if (!allowedFields.includes(key)) return;
 
             const operator = (item.operator || "=").toString().trim().toUpperCase();
-            if (operator === "LIKE") {
+            const safeOperator = allowedOperators.has(operator) ? operator : "=";
+
+            if (safeOperator === "LIKE") {
                 clauses.push(`${key} LIKE ?`);
                 params.push(item.value);
-            } else if (operator === "IN" && Array.isArray(item.value)) {
+            } else if (safeOperator === "IN" && Array.isArray(item.value)) {
                 const placeholders = item.value.map(() => "?").join(",");
                 clauses.push(`${key} IN (${placeholders})`);
                 params.push(...item.value);
             } else {
-                clauses.push(`${key} ${operator} ?`);
+                clauses.push(`${key} ${safeOperator} ?`);
                 params.push(item.value);
             }
         });
@@ -90,23 +93,24 @@ class ExportController {
             const dataExport = {
                 sheetName: "Users",
                 fileName: "users.xlsx",
+                titleLine2: "Danh sách người dùng",
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
                         { header: "ID", key: "id", width: 10 },
                         { header: "Username", key: "username", width: 20 },
-                        { header: "H? t�n", key: "full_name", width: 25 },
+                        { header: "Họ tên", key: "full_name", width: 25 },
                         { header: "Email", key: "email", width: 30 },
-                        { header: "S? di?n tho?i", key: "phone", width: 18 },
-                        { header: "T?nh/Th�nh", key: "province_name", width: 20 },
-                        { header: "X�/Phu?ng", key: "ward_name", width: 20 },
-                        { header: "Tru?ng h?c", key: "school_name", width: 30 },
-                        { header: "�on v? c�ng t�c", key: "work_unit", width: 25 },
-                        { header: "Ch?c v?", key: "organization_position", width: 20 },
-                        { header: "Vai tr�", key: "role_id", width: 15 },
-                        { header: "Tr?ng th�i", key: "status", width: 15 },
-                        { header: "Ng�y t?o", key: "created_at", width: 20 },
-                        { header: "Ng�y c?p nh?t", key: "updated_at", width: 20 },
+                        { header: "Số điện thoại", key: "phone", width: 18 },
+                        { header: "Tỉnh/Thành", key: "province_name", width: 20 },
+                        { header: "Xã/Phường", key: "ward_name", width: 20 },
+                        { header: "Trường học", key: "school_name", width: 30 },
+                        { header: "Đơn vị công tác", key: "work_unit", width: 25 },
+                        { header: "Chức vụ", key: "organization_position", width: 20 },
+                        { header: "Vai trò", key: "role_id", width: 15 },
+                        { header: "Trạng thái", key: "status", width: 15 },
+                        { header: "Ngày tạo", key: "created_at", width: 20 },
+                        { header: "Ngày cập nhật", key: "updated_at", width: 20 },
                     ],
                     rows: rows.map((row, index) => ({ ...row, stt: index + 1 })),
                 },
@@ -160,6 +164,7 @@ class ExportController {
             const dataExport = {
                 sheetName: "Submissions",
                 fileName: "submissions.xlsx",
+                titleLine2: "Danh sách bài thi",
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
@@ -167,22 +172,22 @@ class ExportController {
                         { header: "Season ID", key: "season_id", width: 15 },
                         { header: "Competition Table ID", key: "competition_table_id", width: 20 },
                         { header: "Submitted By", key: "submitted_by_user_id", width: 15 },
-                        { header: "Ti�u d?", key: "title", width: 30 },
-                        { header: "M� t?", key: "description", width: 40 },
+                        { header: "Tiêu đề", key: "title", width: 30 },
+                        { header: "Mô tả", key: "description", width: 40 },
                         { header: "Video URL", key: "video_url", width: 35 },
-                        { header: "Ghi ch�", key: "note", width: 30 },
-                        { header: "T�c gi?", key: "author_full_name", width: 25 },
-                        { header: "T?nh/Th�nh", key: "author_province_name", width: 20 },
-                        { header: "X�/Phu?ng", key: "author_ward_name", width: 20 },
-                        { header: "Tru?ng h?c", key: "author_school_name", width: 25 },
-                        { header: "Th�nh vi�n kh�c", key: "other_members", width: 25 },
+                        { header: "Ghi chú", key: "note", width: 30 },
+                        { header: "Tác giả", key: "author_full_name", width: 25 },
+                        { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
+                        { header: "Xã/Phường", key: "author_ward_name", width: 20 },
+                        { header: "Trường học", key: "author_school_name", width: 25 },
+                        { header: "Thành viên khác", key: "other_members", width: 25 },
                         { header: "Drive File ID", key: "drive_file_id", width: 30 },
                         { header: "Drive Public", key: "drive_is_public", width: 12 },
                         { header: "FB URL", key: "fb_url", width: 35 },
-                        { header: "Tr?ng th�i", key: "status", width: 15 },
-                        { header: "L� do t? ch?i", key: "rejection_reason", width: 30 },
-                        { header: "Ng�y n?p", key: "submitted_at", width: 20 },
-                        { header: "C?p nh?t", key: "updated_at", width: 20 },
+                        { header: "Trạng thái", key: "status", width: 15 },
+                        { header: "Lý do từ chối", key: "rejection_reason", width: 30 },
+                        { header: "Ngày nộp", key: "submitted_at", width: 20 },
+                        { header: "Cập nhật", key: "updated_at", width: 20 },
                     ],
                     rows: rows.map((row, index) => ({ ...row, stt: index + 1 })),
                 },
@@ -224,6 +229,7 @@ class ExportController {
             const dataExport = {
                 sheetName: "Judge Scores",
                 fileName: "judge_scores.xlsx",
+                titleLine2: "Danh sách điểm chấm",
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
@@ -277,18 +283,19 @@ class ExportController {
             const dataExport = {
                 sheetName: "Scoreboard",
                 fileName: "scoreboard.xlsx",
+                titleLine2: "Bảng điểm tổng hợp",
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
                         { header: "ID", key: "id", width: 10 },
                         { header: "Submission ID", key: "submission_id", width: 15 },
-                        { header: "Ti�u d?", key: "title", width: 30 },
-                        { header: "T�c gi?", key: "author_full_name", width: 25 },
-                        { header: "T?nh/Th�nh", key: "author_province_name", width: 20 },
-                        { header: "�i?m gi�m kh?o", key: "judge_total_points", width: 18 },
-                        { header: "�i?m vote", key: "vote_converted_points", width: 18 },
-                        { header: "T?ng di?m", key: "final_points", width: 18 },
-                        { header: "Ng�y ho�n thi?n", key: "finalized_at", width: 20 },
+                        { header: "Tiêu đề", key: "title", width: 30 },
+                        { header: "Tác giả", key: "author_full_name", width: 25 },
+                        { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
+                        { header: "Điểm giám khảo", key: "judge_total_points", width: 18 },
+                        { header: "Điểm vote", key: "vote_converted_points", width: 18 },
+                        { header: "Tổng điểm", key: "final_points", width: 18 },
+                        { header: "Ngày hoàn thiện", key: "finalized_at", width: 20 },
                     ],
                     rows: rows.map((row, index) => ({ ...row, stt: index + 1 })),
                 },
@@ -319,11 +326,12 @@ class ExportController {
             const dataExport = {
                 sheetName: "Participant Stats",
                 fileName: "participant_stats.xlsx",
+                titleLine2: "Thống kê người tham gia",
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
-                        { header: "T?nh/Th�nh", key: "province_name", width: 25 },
-                        { header: "S? lu?ng ngu?i tham gia", key: "participant_count", width: 20 },
+                        { header: "Tỉnh/Thành", key: "province_name", width: 25 },
+                        { header: "Số lượng người tham gia", key: "participant_count", width: 20 },
                     ],
                     rows: rows.map((row, index) => ({ ...row, stt: index + 1 })),
                 },
@@ -355,6 +363,7 @@ class ExportController {
             const dataExport = {
                 sheetName: "Submission Stats",
                 fileName: "submission_stats.xlsx",
+                titleLine2: "Thống kê bài thi",
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },

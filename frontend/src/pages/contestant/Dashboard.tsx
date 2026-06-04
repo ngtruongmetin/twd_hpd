@@ -62,11 +62,12 @@ export default function ContestantDashboard() {
   const profileCards = useMemo(
     () => [
       { label: 'Username', value: user?.username || 'unknown' },
+      { label: 'Email', value: user?.email || 'Chưa bổ sung' },
+      { label: 'Số điện thoại', value: user?.phone || 'Chưa bổ sung' },
       { label: 'Tỉnh/Thành phố', value: user?.province_name || 'Chưa bổ sung' },
       { label: 'Phường/Xã', value: user?.ward_name || 'Chưa bổ sung' },
-      { label: 'Trường học', value: user?.school_name || 'Chưa bổ sung' },
     ],
-    [draft.facebook_post_url, user?.facebook_post_url, user?.province_name, user?.role_code, user?.role_name, user?.school_name, user?.username, user?.ward_name],
+    [draft.facebook_post_url, user?.facebook_post_url, user?.email, user?.phone, user?.province_name, user?.role_code, user?.role_name, user?.school_name, user?.username, user?.ward_name],
   )
 
   const profileReady = Boolean(
@@ -164,7 +165,8 @@ export default function ContestantDashboard() {
                   className="vb-input"
                   placeholder=" "
                   value={draft.email}
-                  onChange={(e) => setDraft((current) => ({ ...current, email: e.target.value }))}
+                  disabled
+                  readOnly
                 />
                 <label className="vb-float-label">Email</label>
               </div>
@@ -173,7 +175,8 @@ export default function ContestantDashboard() {
                   className="vb-input"
                   placeholder=" "
                   value={draft.phone}
-                  onChange={(e) => setDraft((current) => ({ ...current, phone: e.target.value }))}
+                  disabled
+                  readOnly
                 />
                 <label className="vb-float-label">Số điện thoại</label>
               </div>

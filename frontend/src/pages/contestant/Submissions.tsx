@@ -122,14 +122,14 @@ function isFacebookLink(value?: string | null) {
 function isSeasonAcceptingSubmissions(season?: SeasonRow | null) {
   if (!season) return false
 
-  if (String(season.status || '').toUpperCase() !== 'OPEN_SUBMISSION') {
+  const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null
+  const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null
+
+  if (!openAt && !closeAt) {
     return false
   }
 
   const now = Date.now()
-  const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null
-  const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null
-
   if (openAt && now < openAt) return false
   if (closeAt && now > closeAt) return false
 
@@ -175,7 +175,6 @@ export default function ContestantSubmissions() {
     !!user?.full_name &&
     !!user?.province_name &&
     !!user?.ward_name &&
-    !!user?.school_name &&
     !!user?.email &&
     !!user?.phone &&
     isFacebookLink(user?.facebook_post_url || '') &&
@@ -329,7 +328,7 @@ export default function ContestantSubmissions() {
         return
       }
 
-      setError('Bạn cần hoàn thiện hồ sơ (bao gồm link bài đăng thẻ chiến sỹ Hoa phượng đỏ hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.')
+      setError('Bạn cần hoàn thiện hồ sơ (bao gồm link bài đăng thẻ chiến sĩ Hoa phượng đỏ hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.')
       return
     }
 
@@ -487,8 +486,8 @@ export default function ContestantSubmissions() {
                 <label className="vb-float-label">Họ và tên</label>
               </div>
               <div className="vb-field">
-                <input className="vb-input" placeholder=" " value={user?.school_name || ''} disabled readOnly />
-                <label className="vb-float-label">Trường học</label>
+                <input className="vb-input" placeholder=" " value={user?.email || ''} disabled readOnly />
+                <label className="vb-float-label">Email</label>
               </div>
               <div className="vb-field">
                 <input className="vb-input" placeholder=" " value={user?.province_name || ''} disabled readOnly />
@@ -593,7 +592,7 @@ export default function ContestantSubmissions() {
 
             {!profileReady ? (
               <p className="vb-form-error">
-                Bạn cần hoàn thiện hồ sơ (bao gồm link bài đăng thẻ chiến sỹ Hoa phượng đỏ hợp lệ) và dán Link Google Drive bài thi trước khi nộp bài.
+                Bạn cần bổ sung email, số điện thoại, tỉnh/thành, phường/xã, link bài đăng thẻ chiến sĩ Hoa phượng đỏ và link bài thi hợp lệ trước khi nộp bài.
               </p>
             ) : null}
             {success ? <p className="vb-form-success vb-form-submit-success">{success}</p> : null}

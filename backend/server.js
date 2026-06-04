@@ -59,6 +59,45 @@ function ensureUserFacebookColumn() {
   });
 }
 
+function ensureUserAuthColumns() {
+  db.all("PRAGMA table_info(users)", [], (err, rows) => {
+    if (err) {
+      console.error("Failed to inspect users table:", err.message);
+      return;
+    }
+
+    const existingColumns = new Set((rows || []).map((column) => column.name));
+    const columns = [
+      { name: "google_sub", definition: "google_sub TEXT" },
+      { name: "profile_completed", definition: "profile_completed INTEGER NOT NULL DEFAULT 1" },
+    ];
+
+    const missingColumns = columns.filter((column) => !existingColumns.has(column.name));
+    if (missingColumns.length === 0) {
+      return;
+    }
+
+    const runNext = (index) => {
+      if (index >= missingColumns.length) {
+        return;
+      }
+
+      const column = missingColumns[index];
+      db.run(`ALTER TABLE users ADD COLUMN ${column.definition}`, (alterErr) => {
+        if (alterErr) {
+          console.error(`Failed to add ${column.name} column to users:`, alterErr.message);
+        } else {
+          console.log(`Added ${column.name} column to users`);
+        }
+
+        runNext(index + 1);
+      });
+    };
+
+    runNext(0);
+  });
+}
+
 function ensureSubmissionColumns() {
   const columns = [
     "note TEXT",
@@ -110,6 +149,7 @@ function ensureSubmissionColumns() {
 }
 
 ensureUserFacebookColumn();
+ensureUserAuthColumns();
 ensureSubmissionColumns();
 
 // Routes

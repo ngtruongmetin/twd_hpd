@@ -55,6 +55,7 @@ type SubmissionScoreResponse = {
 type StatusEntry = {
   hasScores: boolean
   judgeUsername?: string
+  judgeFullName?: string
 }
 
 type CriterionDraft = {
@@ -94,6 +95,7 @@ export default function JudgeSubmissions() {
   const [message, setMessage] = useState('')
   const [page, setPage] = useState(1)
   const [tableFilter, setTableFilter] = useState('ALL')
+  const [query, setQuery] = useState('')
   const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<number, StatusEntry>>({})
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRow | null>(null)
@@ -140,12 +142,26 @@ export default function JudgeSubmissions() {
 
     return map
   }, [results])
+  const statusRows = useMemo(
+    () =>
+      submissions.filter(
+        (row) => tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter,
+      ),
+    [submissions, tableFilter],
+  )
+
   const filteredRows = useMemo(() => {
-    return submissions.filter((row) => {
-      const tableOk = tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter
-      return tableOk
+    const normalizedQuery = query.trim().toLowerCase()
+
+    return statusRows.filter((row) => {
+      if (!normalizedQuery) return true
+
+      const status = submissionStatusMap[row.id]
+      return [tableNameById.get(row.competition_table_id || 0), row.title, status?.judgeUsername, status?.judgeFullName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery))
     })
-  }, [submissions, tableFilter])
+  }, [statusRows, query, submissionStatusMap, tableNameById])
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -156,20 +172,20 @@ export default function JudgeSubmissions() {
 
   useEffect(() => {
     setPage(1)
-  }, [tableFilter])
+  }, [tableFilter, query])
 
   useEffect(() => {
     let active = true
 
     async function loadStatuses() {
-      if (pagedRows.length === 0) {
+      if (statusRows.length === 0) {
         if (active) setSubmissionStatusMap({})
         return
       }
 
       try {
         const responses = await Promise.all(
-          pagedRows.map(async (submission) => {
+          statusRows.map(async (submission) => {
             const response = await api.get(`/api/v1/judge_scores/submission/${submission.id}`)
             return {
               id: submission.id,
@@ -190,7 +206,8 @@ export default function JudgeSubmissions() {
 
           nextStatusMap[id] = {
             hasScores,
-            judgeUsername: (judgeScore as any)?.judge_username,
+            judgeUsername: judgeScore?.judge_username,
+            judgeFullName: judgeScore?.judge_full_name,
           }
         })
         setSubmissionStatusMap(nextStatusMap)
@@ -204,7 +221,7 @@ export default function JudgeSubmissions() {
     return () => {
       active = false
     }
-  }, [judgeUserId, pagedRows])
+  }, [judgeUserId, statusRows])
 
   function resetModalState() {
     setModalError('')
@@ -352,24 +369,33 @@ export default function JudgeSubmissions() {
           <p className="vb-section-note">{filteredRows.length} bài dự thi khớp điều kiện hiện tại.</p>
         </div>
 
-        <div className="vb-account-toolbar">
-          <div className="vb-account-filters">
-            <div>
-              <label htmlFor="judge-table-filter">Bảng thi</label>
-              <select
-                id="judge-table-filter"
-                className="vb-select"
-                value={tableFilter}
-                onChange={(e) => setTableFilter(e.target.value)}
-              >
-                <option value="ALL">Tất cả bảng thi</option>
-                {tables.map((table) => (
-                  <option key={table.id} value={table.id}>
-                    {table.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="vb-tw-toolbar-row">
+          <div className="vb-account-search">
+            <label htmlFor="judge-submission-search">Tìm kiếm</label>
+            <input
+              id="judge-submission-search"
+              className="vb-input"
+              placeholder="Tên bảng thi, tiêu đề, username, họ tên người chấm..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="vb-tw-role-filter">
+            <label htmlFor="judge-table-filter">Bảng thi</label>
+            <select
+              id="judge-table-filter"
+              className="vb-toolbar-select"
+              value={tableFilter}
+              onChange={(e) => setTableFilter(e.target.value)}
+            >
+              <option value="ALL">Tất cả bảng thi</option>
+              {tables.map((table) => (
+                <option key={table.id} value={table.id}>
+                  {table.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -392,6 +418,10 @@ export default function JudgeSubmissions() {
               {pagedRows.map((row) => {
                 const hasScores = submissionStatusMap[row.id]?.hasScores ?? false
                 const result = resultBySubmissionId.get(Number(row.id))
+                const judgeLabel =
+                  submissionStatusMap[row.id]?.judgeUsername ||
+                  submissionStatusMap[row.id]?.judgeFullName ||
+                  ''
                 return (
                   <tr key={row.id}>
                     <td>{tableNameById.get(row.competition_table_id || 0) || 'N/A'}</td>
@@ -437,7 +467,7 @@ export default function JudgeSubmissions() {
                     <td>
                       <span className={`vb-status-pill ${statusClass(hasScores)}`}>
                         {hasScores
-                          ? `Đã chấm bởi ${submissionStatusMap[row.id]?.judgeUsername || ''}`
+                          ? `Đã chấm bởi ${judgeLabel}`
                           : 'Chưa chấm'}
                       </span>
                     </td>

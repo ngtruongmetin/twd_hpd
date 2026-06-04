@@ -123,6 +123,23 @@ function seasonStatusLabel(status: string) {
   return seasonStatusOptions.find((item) => item.value === status)?.label || status
 }
 
+function isSubmissionOpenNow(season?: SeasonRow | null) {
+  if (!season) return false
+
+  const openAt = season.submission_open_at ? new Date(season.submission_open_at).getTime() : null
+  const closeAt = season.submission_close_at ? new Date(season.submission_close_at).getTime() : null
+  if (!openAt && !closeAt) return false
+
+  const now = Date.now()
+  if (openAt && now < openAt) return false
+  if (closeAt && now > closeAt) return false
+  return true
+}
+
+function currentSubmissionStateLabel(season?: SeasonRow | null) {
+  return isSubmissionOpenNow(season) ? 'Đang mở nộp bài' : 'Đang đóng nộp bài'
+}
+
 function normalizeError(err: unknown, fallback: string) {
   if (axios.isAxiosError(err)) return err.response?.data?.message || fallback
   return fallback
@@ -184,7 +201,7 @@ export default function TechAdminSeasons() {
   )
 
   const stats = useMemo(() => {
-    const activeCount = seasons.filter((season) => season.status === 'OPEN_SUBMISSION').length
+    const activeCount = seasons.filter((season) => isSubmissionOpenNow(season)).length
     const draftCount = seasons.filter((season) => season.status === 'DRAFT').length
     return {
       seasons: seasons.length,
@@ -489,7 +506,7 @@ export default function TechAdminSeasons() {
           <p className="vb-overline">Mùa hiện chọn</p>
           <strong className="vb-province-kpi-value">{selectedSeason?.name || 'Chưa chọn'}</strong>
           <span className="vb-province-kpi-label">
-            {selectedSeason ? `${selectedSeason.code} · ${seasonStatusLabel(selectedSeason.status)}` : 'Chọn mùa thi ở panel bên trái'}
+            {selectedSeason ? `${selectedSeason.code} · ${currentSubmissionStateLabel(selectedSeason)}` : 'Chọn mùa thi ở panel bên trái'}
           </span>
         </article>
       </section>
@@ -517,7 +534,7 @@ export default function TechAdminSeasons() {
               >
                 <strong>{season.name}</strong>
                 <span>{season.code}</span>
-                <small>{seasonStatusLabel(season.status)}</small>
+                <small>{currentSubmissionStateLabel(season)}</small>
                 <small>{formatDate(season.created_at)}</small>
 
                 <div className="vb-tw-action-row" style={{ marginTop: 12 }}>

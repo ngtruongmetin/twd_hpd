@@ -105,6 +105,35 @@ function normalizeError(err: unknown, fallback: string) {
   return fallback
 }
 
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function buildExportFilter(roleFilter: FilterRole) {
+  if (roleFilter === 'ALL') return []
+
+  const roleIdByFilter: Record<Exclude<FilterRole, 'ALL'>, number> = {
+    TECH_ADMIN: 1,
+    TW_ADMIN: 2,
+    PROVINCE_ADMIN: 3,
+    JUDGE: 5,
+    CONTESTANT: 4,
+  }
+
+  return [{ key: 'role_id', value: roleIdByFilter[roleFilter] }]
+}
+
+function getExportFileName(roleFilter: FilterRole) {
+  return roleFilter === 'ALL' ? 'users.xlsx' : `users-${roleFilter.toLowerCase()}.xlsx`
+}
+
 function roleDisplayName(roleCode: string | null) {
   switch (roleCode) {
     case 'TECH_ADMIN':
@@ -143,6 +172,7 @@ export default function TwAdminUsers() {
   const [submitting, setSubmitting] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [deletingUsername, setDeletingUsername] = useState('')
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [form, setForm] = useState<CreateForm>(initialForm)
@@ -323,6 +353,36 @@ export default function TwAdminUsers() {
     }
   }
 
+  async function handleExportUsers() {
+    setExporting(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await api.post(
+        '/api/v1/export/users',
+        { filter: buildExportFilter(roleFilter) },
+        { responseType: 'blob' },
+      )
+      const contentType =
+        typeof response.headers?.['content-type'] === 'string'
+          ? response.headers['content-type']
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+      downloadBlob(
+        new Blob([response.data], {
+          type: contentType,
+        }),
+        getExportFileName(roleFilter),
+      )
+      setMessage('File Excel đã sẵn sàng và đang được tải xuống.')
+    } catch (err: unknown) {
+      setError(normalizeError(err, 'Không xuất được file user.'))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   function closeCreateModal() {
     if (!submitting) setCreateOpen(false)
   }
@@ -394,6 +454,9 @@ export default function TwAdminUsers() {
           </div>
           <div className="vb-tw-toolbar-cta">
             <button type="button" className="vb-tw-btn-primary" onClick={() => setCreateOpen(true)}>Tạo tài khoản</button>
+            <button type="button" className="vb-tw-btn-muted" onClick={() => void handleExportUsers()} disabled={exporting}>
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </button>
           </div>
         </div>
 
