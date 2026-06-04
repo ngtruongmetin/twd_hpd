@@ -1,4 +1,5 @@
 const db = require("../utils/db");
+const bcrypt = require("bcrypt");
 
 class UserController {
     static async getUser(req, res) {

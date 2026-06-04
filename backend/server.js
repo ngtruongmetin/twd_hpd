@@ -15,7 +15,7 @@ app.use(bodyparser.urlencoded({ extended: true }));
 
 // CORS
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:4173"],
+  origin: ["http://localhost:5173", "http://localhost:4173", "http://127.0.0.1:5173"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -178,8 +178,8 @@ app.get("/", (req, res) => {
   res.send("Server running");
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(5000, () => {
+  console.log("Server running on port 5000");
 });
 
 // 404 không tìm thấy API 
