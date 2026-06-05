@@ -46,15 +46,17 @@ Sau khi chạy xong:
 
 ### 3. Dữ liệu SQLite
 
-SQLite được giữ trong volume Docker:
-- volume name: `twd_hpd_sqlite`
-- mount vào: `/app/backend/data`
+Project đã có sẵn file dữ liệu:
+- `backend/data/data.db`
 
-Điều này giúp dữ liệu không mất khi container restart.
+Docker Compose sẽ bind mount thư mục:
+- `./backend/data:/app/backend/data`
+
+Nghĩa là container backend sẽ đọc đúng `data.db` đang có sẵn trong repo hoặc trên máy deploy, không cần import lại vào named volume.
 
 Lưu ý:
-- `docker compose down` sẽ chỉ dừng container, dữ liệu vẫn còn.
-- `docker compose down -v` sẽ xóa volume và mất dữ liệu SQLite.
+- `docker compose down` chỉ dừng container, file `backend/data/data.db` trên host vẫn còn.
+- Nếu muốn thay data, chỉ cần thay file `backend/data/data.db` trên host rồi chạy lại container.
 
 ### 4. FE có cần `.env` không?
 
@@ -75,7 +77,7 @@ Nếu chạy local dev ngoài Docker, frontend vẫn có thể dùng Vite proxy 
 - [backend/Dockerfile](backend/Dockerfile): Node 22, chạy `server.js`
 - [frontend/Dockerfile](frontend/Dockerfile): build Vite rồi serve bằng Nginx
 - [frontend/nginx.conf](frontend/nginx.conf): proxy `/api/` về backend
-- [docker-compose.yml](docker-compose.yml): ghép frontend, backend, SQLite volume
+- [docker-compose.yml](docker-compose.yml): ghép frontend, backend, SQLite bind mount
 - [\.dockerignore](.dockerignore): giảm kích thước context build
 
 ## API / CORS

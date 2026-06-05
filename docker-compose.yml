@@ -7,9 +7,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend/.env:/app/backend/.env:ro
-      - twd_hpd_sqlite:/app/backend/data
+      - ./backend/data:/app/backend/data
     expose:
-      - "5000"
+      - "3000"
 
   frontend:
     build:
@@ -21,6 +21,3 @@ services:
       - backend
     ports:
       - "8080:80"
-
-volumes:
-  twd_hpd_sqlite:

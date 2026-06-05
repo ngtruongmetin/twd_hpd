@@ -8,11 +8,12 @@ RUN apt-get update \
 
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
+RUN npm rebuild sqlite3 --build-from-source
 
 COPY backend/. ./
 
 ENV NODE_ENV=production
 
-EXPOSE 5000
+EXPOSE 3000
 
 CMD ["node", "server.js"]
