@@ -37,6 +37,35 @@ function normalizeError(err: unknown, fallback: string) {
   return fallback
 }
 
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function buildExportFilter(tableFilter: string, provinceFilter: string) {
+  const filter: Array<{ key: string; operator?: string; value: string | number }> = []
+
+  if (tableFilter !== 'ALL') {
+    filter.push({ key: 'competition_table_id', value: Number(tableFilter) })
+  }
+
+  if (provinceFilter !== 'ALL') {
+    filter.push({ key: 'author_province_name', value: provinceFilter })
+  }
+
+  return filter
+}
+
+function getExportFileName() {
+  return 'submissions.xlsx'
+}
+
 export default function TwAdminSubmissions() {
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
@@ -49,6 +78,7 @@ export default function TwAdminSubmissions() {
   const [tableFilter, setTableFilter] = useState('ALL')
   const [provinceFilter, setProvinceFilter] = useState('ALL')
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   async function loadData() {
     setLoading(true)
@@ -164,6 +194,37 @@ export default function TwAdminSubmissions() {
     }
   }
 
+  async function handleExportSubmissions() {
+    setExporting(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await api.post(
+        '/api/v1/export/submissions',
+        { filter: buildExportFilter(tableFilter, provinceFilter) },
+        { responseType: 'blob' },
+      )
+
+      const contentType =
+        typeof response.headers?.['content-type'] === 'string'
+          ? response.headers['content-type']
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+      downloadBlob(
+        new Blob([response.data], {
+          type: contentType,
+        }),
+        getExportFileName(),
+      )
+      setMessage('File Excel đã sẵn sàng và đang được tải xuống.')
+    } catch (err: unknown) {
+      setError(normalizeError(err, 'Không xuất được file bài nộp.'))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <main className="vb-page vb-dashboard-page vb-tw-submissions-page">
       <Navbar />
@@ -256,6 +317,17 @@ export default function TwAdminSubmissions() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="vb-tw-toolbar-cta">
+            <button
+              type="button"
+              className="vb-tw-btn-primary"
+              onClick={() => void handleExportSubmissions()}
+              disabled={exporting}
+            >
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </button>
           </div>
         </div>
 

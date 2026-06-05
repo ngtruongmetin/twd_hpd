@@ -346,6 +346,16 @@ Các endpoint chỉ dành cho `TECH_ADMIN` với quyền cao nhất.
 - Yêu cầu: Không bắt buộc đăng nhập (theo cấu hình hiện tại)
 - Body: định dạng `sheetName`, `fileName`, `matrix.columns`, `matrix.rows`
 
+## Landing Stats API
+
+### /api/v1/landing/stats
+- Phương thức: GET
+- Mô tả: Trả về thống kê công khai cho trang Landing.
+- Response:
+  - `total_submissions`: tổng số bài nộp trên toàn hệ thống
+  - `top_province_name`: tên tỉnh/thành có số bài nộp nhiều nhất
+  - `top_province_submissions`: số bài nộp của tỉnh/thành dẫn đầu
+
 ### /api/v1/export/users
 - Phương thức: POST
 - Mô tả: Xuất Excel danh sách tài khoản.

@@ -172,6 +172,7 @@ app.use("/api/v1/award_winners", require("./modules/award_winners/routes"));
 app.use("/api/v1/email_logs", require("./modules/email_logs/routes"));
 app.use("/api/v1/mail", AuthMiddleware.IsLogin, AuthMiddleware.IsAdmin, require("./modules/mail/routes"));
 app.use("/api/v1/export", require("./modules/export/routes"));
+app.use("/api/v1/landing", require("./modules/landing/routes"));
 app.use("/api/v1/password", require("./modules/password/routes"));
 app.use("/api/v1/province", require("./modules/province/routes"));
 app.use("/api/v1/tech_admin", require("./modules/tech_admin/routes"));

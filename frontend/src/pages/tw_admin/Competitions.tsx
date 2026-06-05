@@ -54,15 +54,6 @@ const initialSeasonForm: SeasonForm = {
   status: 'DRAFT',
 }
 
-const seasonStatusOptions: { value: SeasonStatus; label: string }[] = [
-  { value: 'DRAFT', label: 'Bản nháp' },
-  { value: 'OPEN_SUBMISSION', label: 'Đang mở nộp bài' },
-  { value: 'CLOSED_SUBMISSION', label: 'Đã đóng nộp bài' },
-  { value: 'JUDGING', label: 'Đang chấm điểm' },
-  { value: 'ANNOUNCED', label: 'Đã công bố kết quả' },
-  { value: 'ARCHIVED', label: 'Lưu trữ' },
-]
-
 // function statusLabel(status: string) {
 //   return seasonStatusOptions.find((item) => item.value === status)?.label || status
 // }
@@ -228,21 +219,25 @@ export default function TwAdminCompetitions() {
           <div className="vb-section-head is-compact"><div><p className="vb-overline">Thông tin cuộc thi</p><h2>Chỉnh sửa</h2></div></div>
           <form className="vb-season-form" onSubmit={handleSeasonSave}>
             <div className="vb-form-grid">
-              <div className="vb-field"><input className="vb-input" placeholder=" " value={seasonForm.code} onChange={(e) => setSeasonForm((p) => ({ ...p, code: e.target.value }))} /><label className="vb-float-label">Mã cuộc thi</label></div>
-              <div className="vb-field"><input className="vb-input" placeholder=" " value={seasonForm.name} onChange={(e) => setSeasonForm((p) => ({ ...p, name: e.target.value }))} /><label className="vb-float-label">Tên cuộc thi</label></div>
-              <div className="vb-field vb-full"><input className="vb-input" placeholder=" " value={seasonForm.description} onChange={(e) => setSeasonForm((p) => ({ ...p, description: e.target.value }))} /><label className="vb-float-label">Mô tả</label></div>
-              <div className="vb-field"><input type="datetime-local" className="vb-input" value={seasonForm.submission_open_at} onChange={(e) => setSeasonForm((p) => ({ ...p, submission_open_at: e.target.value }))} /><label className="vb-float-label">Mở nộp bài</label></div>
-              <div className="vb-field"><input type="datetime-local" className="vb-input" value={seasonForm.submission_close_at} onChange={(e) => setSeasonForm((p) => ({ ...p, submission_close_at: e.target.value }))} /><label className="vb-float-label">Đóng nộp bài</label></div>
-              <div className="vb-field"><input type="datetime-local" className="vb-input" value={seasonForm.voting_open_at} onChange={(e) => setSeasonForm((p) => ({ ...p, voting_open_at: e.target.value }))} /><label className="vb-float-label">Mở bình chọn</label></div>
-              <div className="vb-field"><input type="datetime-local" className="vb-input" value={seasonForm.voting_close_at} onChange={(e) => setSeasonForm((p) => ({ ...p, voting_close_at: e.target.value }))} /><label className="vb-float-label">Đóng bình chọn</label></div>
-              <div className="vb-field"><input type="datetime-local" className="vb-input" value={seasonForm.top5_announce_at} onChange={(e) => setSeasonForm((p) => ({ ...p, top5_announce_at: e.target.value }))} /><label className="vb-float-label">Công bố top 5</label></div>
-              <div className="vb-field"><input type="datetime-local" className="vb-input" value={seasonForm.final_announce_at} onChange={(e) => setSeasonForm((p) => ({ ...p, final_announce_at: e.target.value }))} /><label className="vb-float-label">Công bố chung cuộc</label></div>
               <div className="vb-field">
-                <select className="vb-select" value={seasonForm.status} onChange={(e) => setSeasonForm((p) => ({ ...p, status: e.target.value as SeasonStatus }))}>
-                  {seasonStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+                <input
+                  type="datetime-local"
+                  className="vb-input"
+                  placeholder=" "
+                  value={seasonForm.submission_open_at}
+                  onChange={(e) => setSeasonForm((p) => ({ ...p, submission_open_at: e.target.value }))}
+                />
+                <label className="vb-float-label">Mở nộp bài</label>
+              </div>
+              <div className="vb-field">
+                <input
+                  type="datetime-local"
+                  className="vb-input"
+                  placeholder=" "
+                  value={seasonForm.submission_close_at}
+                  onChange={(e) => setSeasonForm((p) => ({ ...p, submission_close_at: e.target.value }))}
+                />
+                <label className="vb-float-label">Đóng nộp bài</label>
               </div>
             </div>
             <div className="vb-modal-actions">
