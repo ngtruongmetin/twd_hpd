@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { getDashboardPathForRole } from '../auth/role'
-import { api } from '../api/api'
+import { api, apiBaseUrl } from '../api/api'
 import { useAuth } from '../context/useAuth'
 
 export default function Login() {
@@ -14,7 +14,7 @@ export default function Login() {
   const [error, setError] = useState('')
 
   const googleAuthUrl = useMemo(() => {
-    const baseUrl = api.defaults.baseURL || 'http://localhost:3000'
+    const baseUrl = apiBaseUrl || window.location.origin
     return new URL('/api/v1/auth/google', baseUrl).toString()
   }, [])
 

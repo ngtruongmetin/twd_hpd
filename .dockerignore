@@ -1,0 +1,12 @@
+.git
+.gitignore
+.codex
+.agents
+**/node_modules
+**/dist
+**/.vite
+**/.DS_Store
+**/*.log
+backend/.env
+frontend/.env
+frontend/.env.*
