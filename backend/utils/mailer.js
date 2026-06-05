@@ -1,5 +1,5 @@
-const path = require("path");
 const nodemailer = require("nodemailer");
+const { CHUHIEU_PNG_PATH } = require("./assets");
 
 function escapeHtml(value) {
   return String(value)
@@ -81,7 +81,7 @@ async function sendAccountCredentialsEmail({ toEmail, username, password, fullNa
     attachments: [
       {
         filename: "chuhieu.png",
-        path: path.resolve(__dirname, "../../frontend/public/chuhieu.png"),
+        path: CHUHIEU_PNG_PATH,
         cid: "chuhieu",
       },
     ],

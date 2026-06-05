@@ -434,6 +434,7 @@
   .vb-logo { height: 48px; }
   .vb-desktop-nav { display: none; }
   .vb-hamburger { display: inline-flex; }
+  .vb-landing-stats { grid-template-columns: 1fr; }
 
   .vb-mobile-menu {
     display: grid;

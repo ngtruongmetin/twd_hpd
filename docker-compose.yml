@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: twd_hpd_backend
+    restart: unless-stopped
+    volumes:
+      - ./backend/.env:/app/backend/.env:ro
+      - ./backend/data:/app/backend/data
+    expose:
+      - "3000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: twd_hpd_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"

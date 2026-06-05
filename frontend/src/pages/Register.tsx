@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../api/api'
+import { api, apiBaseUrl } from '../api/api'
 import ProvinceSelector, { type ProvinceOption } from '../components/ProvinceSelector'
 import WardSelector, { type WardOption } from '../components/WardSelector'
 
@@ -28,7 +28,7 @@ export default function Register() {
   const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
 
   const googleAuthUrl = useMemo(() => {
-    const baseUrl = api.defaults.baseURL || 'http://localhost:3000'
+    const baseUrl = apiBaseUrl || window.location.origin
     return new URL('/api/v1/auth/google', baseUrl).toString()
   }, [])
 

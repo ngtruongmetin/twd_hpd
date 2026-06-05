@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const path = require("path");
+const { CHUHIEU_PNG_PATH } = require("../utils/assets");
 const db = require("../utils/db");
 
 function dbGet(sql, params = []) {
@@ -189,7 +189,7 @@ async function sendSubmissionConfirmationEmail({
             attachments: [
                 {
                     filename: "chuhieu.png",
-                    path: path.resolve(__dirname, "../../frontend/public/chuhieu.png"),
+                    path: CHUHIEU_PNG_PATH,
                     cid: "chuhieu",
                 },
             ],
