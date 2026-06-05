@@ -24,13 +24,13 @@ copy backend\.env.example backend\.env
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_CALLBACK_URL`
 
-Với Docker production, `GOOGLE_CALLBACK_URL` nên trỏ về domain frontend public của bạn, ví dụ:
+Với Docker production, `GOOGLE_CALLBACK_URL` nên trỏ về domain frontend public tương ứng, ví dụ:
 
 ```env
 GOOGLE_CALLBACK_URL=http://localhost:8080/api/v1/auth/google/callback
 ```
 
-Nếu deploy lên domain thật thì đổi sang domain đó.
+Khi triển khai lên domain thật, thay bằng domain thực tế.
 
 ### 2. Build và chạy
 
@@ -56,7 +56,7 @@ Nghĩa là container backend sẽ đọc đúng `data.db` đang có sẵn trong 
 
 Lưu ý:
 - `docker compose down` chỉ dừng container, file `backend/data/data.db` trên host vẫn còn.
-- Nếu muốn thay data, chỉ cần thay file `backend/data/data.db` trên host rồi chạy lại container.
+- Khi cần thay data, chỉ cần thay file `backend/data/data.db` trên host rồi chạy lại container.
 
 ### 4. FE có cần `.env` không?
 
@@ -88,7 +88,7 @@ Trong Docker production, frontend và backend đi qua cùng origin Nginx nên:
 
 Hiện backend vẫn giữ cấu hình CORS cho môi trường dev/local.
 
-Nếu sau này bạn tách frontend và backend ra 2 domain khác nhau, lúc đó mới cần chỉnh lại CORS origins.
+Nếu sau này frontend và backend được tách ra 2 domain khác nhau, lúc đó mới cần chỉnh lại CORS origins.
 
 ## Chạy lại / dừng
 
@@ -104,5 +104,5 @@ docker compose logs -f
 
 ## Ghi chú
 
-- Frontend login/register Google vẫn dùng URL backend theo `window.location.origin`, nên khi deploy cần đảm bảo domain public đúng với callback URL trong `.env`.
+- Frontend login/register Google vẫn dùng URL backend theo `window.location.origin`, nên khi deploy cần đảm bảo domain public khớp với callback URL trong `.env`.
 - Không dùng `npm run dev` cho production image. Production được chạy bằng Nginx trong container frontend.
