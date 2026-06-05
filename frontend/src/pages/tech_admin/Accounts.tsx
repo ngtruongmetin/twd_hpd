@@ -33,6 +33,8 @@ type FilterStatus = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'LOCKED'
 
 type AccountForm = {
   username: string
+  password: string
+  confirm_password: string
   full_name: string
   email: string
   phone: string
@@ -72,6 +74,8 @@ const statusOptions: { label: string; value: FilterStatus }[] = [
 function buildForm(account: AccountRow | null): AccountForm {
   return {
     username: account?.username || '',
+    password: '',
+    confirm_password: '',
     full_name: account?.full_name || '',
     email: account?.email || '',
     phone: account?.phone || '',
@@ -95,6 +99,9 @@ export default function Accounts() {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<'edit' | 'create'>('edit')
+  //const [creating, setCreating] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [form, setForm] = useState<AccountForm>(buildForm(null))
   const [selectedProvince, setSelectedProvince] = useState<ProvinceOption | null>(null)
   const [selectedWard, setSelectedWard] = useState<WardOption | null>(null)
@@ -218,6 +225,81 @@ export default function Accounts() {
     return account.province_name || (account.province_code ? provinceLookup[Number(account.province_code)] : '') || 'N/A'
   }
 
+  function openCreate() {
+    setModalMode('create')
+    setSelectedId(null)
+    setForm(buildForm(null))
+    setSelectedProvince(null)
+    setSelectedWard(null)
+    setSaveError('')
+    setSaveSuccess('')
+    setDeleteError('')
+    setDetailOpen(true)
+  }
+
+  function openDetail(account: AccountRow) {
+    setModalMode('edit')
+    setSelectedId(account.id)
+    setForm(buildForm(account))
+    setSelectedProvince(
+      account.province_code
+        ? {
+          code: Number(account.province_code),
+          name: account.province_name || provinceLookup[Number(account.province_code)] || '',
+        }
+        : null,
+    )
+    setSelectedWard(
+      account.ward_name
+        ? {
+          code: 0,
+          name: account.ward_name,
+        }
+        : null,
+    )
+    setSaveError('')
+    setSaveSuccess('')
+    setDeleteError('')
+    setDetailOpen(true)
+  }
+
+  function closeDetail() {
+    setDetailOpen(false)
+    setSaveError('')
+    setSaveSuccess('')
+    setDeleteError('')
+    setModalMode('edit')
+  }
+
+  async function handleDelete() {
+    if (!selectedAccount) {
+      return
+    }
+
+    const confirmed = window.confirm(`Xác nhận xóa tài khoản ${selectedAccount.username}?`)
+    if (!confirmed) {
+      return
+    }
+
+    setSaving(true)
+    setDeleteError('')
+    setSaveSuccess('')
+
+    try {
+      await api.delete(`/api/v1/users/${encodeURIComponent(selectedAccount.username)}`)
+      setSaveSuccess('Xóa tài khoản thành công.')
+      await loadAccounts()
+      setDetailOpen(false)
+    } catch (err: unknown) {
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message || 'Không xóa được tài khoản.'
+        : 'Không xóa được tài khoản.'
+      setDeleteError(message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   useEffect(() => {
     if (!selectedAccount?.province_code) {
       return
@@ -250,38 +332,27 @@ export default function Accounts() {
     return { total, activeCount, adminCount, judgeCount }
   }, [accounts])
 
-  function openDetail(account: AccountRow) {
-    setSelectedId(account.id)
-    setForm(buildForm(account))
-    setSelectedProvince(
-      account.province_code
-        ? {
-          code: Number(account.province_code),
-          name: account.province_name || provinceLookup[Number(account.province_code)] || '',
-        }
-        : null,
-    )
-    setSelectedWard(
-      account.ward_name
-        ? {
-          code: 0,
-          name: account.ward_name,
-        }
-        : null,
-    )
-    setSaveError('')
-    setSaveSuccess('')
-    setDetailOpen(true)
-  }
-
-  function closeDetail() {
-    setDetailOpen(false)
-  }
-
   async function handleSave(event: FormEvent) {
     event.preventDefault()
-    if (!selectedAccount) {
+    if (modalMode === 'edit' && !selectedAccount) {
       return
+    }
+
+    if (modalMode === 'create') {
+      if (!form.username || !form.password || !form.confirm_password) {
+        setSaveError('Vui lòng điền đầy đủ username, mật khẩu và xác nhận mật khẩu.')
+        return
+      }
+
+      if (form.password !== form.confirm_password) {
+        setSaveError('Mật khẩu và xác nhận mật khẩu không khớp.')
+        return
+      }
+
+      if (form.password.length < 6) {
+        setSaveError('Mật khẩu phải có ít nhất 6 ký tự.')
+        return
+      }
     }
 
     setSaving(true)
@@ -303,14 +374,27 @@ export default function Accounts() {
     }
 
     try {
-      await api.put(`/api/v1/users/${encodeURIComponent(selectedAccount.username)}`, payload)
-      setSaveSuccess('Cập nhật thông tin thành công.')
-      await loadAccounts(selectedAccount.username)
+      if (modalMode === 'create') {
+        await api.post('/api/v1/auth/register', {
+          username: form.username,
+          password: form.password,
+          ...payload,
+        })
+
+        setSaveSuccess('Tạo tài khoản thành công.')
+        await loadAccounts(form.username)
+        setModalMode('edit')
+      } else {
+        await api.put(`/api/v1/users/${encodeURIComponent(selectedAccount.username)}`, payload)
+        setSaveSuccess('Cập nhật thông tin thành công.')
+        await loadAccounts(selectedAccount.username)
+      }
+
       setDetailOpen(true)
     } catch (err: unknown) {
       const message = axios.isAxiosError(err)
-        ? err.response?.data?.message || 'Không cập nhật được tài khoản.'
-        : 'Không cập nhật được tài khoản.'
+        ? err.response?.data?.message || 'Không lưu được tài khoản.'
+        : 'Không lưu được tài khoản.'
       setSaveError(message)
     } finally {
       setSaving(false)
@@ -394,6 +478,11 @@ export default function Accounts() {
               ))}
             </select>
           </div>
+          <div className="vb-account-create">
+            <button type="button" className="vb-tw-btn-primary" onClick={openCreate}>
+              Thêm tài khoản
+            </button>
+          </div>
         </div>
       </section>
 
@@ -460,13 +549,14 @@ export default function Accounts() {
           <article className="vb-account-note-card">
             <p className="vb-overline">Ghi chú vận hành</p>
             <ul>
-              <li>Popup này có form chỉnh sửa trực tiếp và gọi API PUT.</li>
+              <li>Popup này hỗ trợ tạo mới, chỉnh sửa và xóa tài khoản.</li>
+              <li>Chỉnh sửa dùng API PUT, tạo mới dùng API đăng ký.</li>
             </ul>
           </article>
         </aside>
       </section>
 
-      {detailOpen && selectedAccount ? (
+      {detailOpen && (modalMode === 'create' || selectedAccount) ? (
         <div className="vb-modal-backdrop" role="presentation" onClick={closeDetail}>
           <section
             className="vb-modal"
@@ -477,8 +567,10 @@ export default function Accounts() {
           >
             <div className="vb-modal-head">
               <div>
-                <p className="vb-overline">Chỉnh sửa tài khoản</p>
-                <h2 id="account-modal-title">{selectedAccount.full_name}</h2>
+                <p className="vb-overline">{modalMode === 'create' ? 'Tạo tài khoản' : 'Chỉnh sửa tài khoản'}</p>
+                <h2 id="account-modal-title">
+                  {modalMode === 'create' ? 'Tạo tài khoản mới' : selectedAccount?.full_name || 'Tài khoản'}
+                </h2>
               </div>
               <button type="button" className="vb-modal-close" onClick={closeDetail}>
                 Đóng
@@ -488,6 +580,7 @@ export default function Accounts() {
             <div className="vb-modal-layout">
               <div className="vb-modal-main">
                 {saveError ? <p className="vb-form-error">{saveError}</p> : null}
+                {deleteError ? <p className="vb-form-error">{deleteError}</p> : null}
                 {saveSuccess ? <p className="vb-form-success">{saveSuccess}</p> : null}
 
                 <form className="vb-modal-form" onSubmit={handleSave}>
@@ -506,10 +599,40 @@ export default function Accounts() {
                           className="vb-input"
                           placeholder=" "
                           value={form.username}
-                          disabled
+                          onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
+                          disabled={modalMode === 'edit'}
+                          required
                         />
                         <label className="vb-float-label" htmlFor="username">Username</label>
                       </div>
+                      {modalMode === 'create' ? (
+                        <>
+                          <div className="vb-field">
+                            <input
+                              id="password"
+                              type="password"
+                              className="vb-input"
+                              placeholder=" "
+                              value={form.password}
+                              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                              required
+                            />
+                            <label className="vb-float-label" htmlFor="password">Mật khẩu</label>
+                          </div>
+                          <div className="vb-field">
+                            <input
+                              id="confirm_password"
+                              type="password"
+                              className="vb-input"
+                              placeholder=" "
+                              value={form.confirm_password}
+                              onChange={(e) => setForm((prev) => ({ ...prev, confirm_password: e.target.value }))}
+                              required
+                            />
+                            <label className="vb-float-label" htmlFor="confirm_password">Xác nhận mật khẩu</label>
+                          </div>
+                        </>
+                      ) : null}
                       <div className="vb-field">
                         <input
                           id="full_name"
@@ -647,8 +770,13 @@ export default function Accounts() {
 
                   <div className="vb-modal-actions">
                     <button type="submit" className="vb-btn vb-btn-primary" disabled={saving}>
-                      {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                      {saving ? 'Đang lưu...' : modalMode === 'create' ? 'Tạo tài khoản' : 'Lưu thay đổi'}
                     </button>
+                    {modalMode === 'edit' ? (
+                      <button type="button" className="vb-btn vb-tw-btn-danger" onClick={handleDelete} disabled={saving}>
+                        Xóa tài khoản
+                      </button>
+                    ) : null}
                     <button type="button" className="vb-btn vb-btn-secondary" onClick={closeDetail}>
                       Hủy
                     </button>
