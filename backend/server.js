@@ -8,6 +8,15 @@ const dotenv = require("dotenv");
 const db = require("./utils/db");
 dotenv.config();
 
+const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+
+if (proxyUrl) {
+  const { ProxyAgent, setGlobalDispatcher } = require("undici");
+
+  setGlobalDispatcher(new ProxyAgent(proxyUrl));
+
+  console.log(`Global fetch dispatcher set to proxy ${proxyUrl}`);
+}
 const app = express();
 
 const PORT = process.env.PORT || 3000;

@@ -1,7 +1,7 @@
 const nodemailer = require("nodemailer");
 const { CHUHIEU_PNG_PATH } = require("../utils/assets");
 const db = require("../utils/db");
-
+const { ProxyAgent } = require("undici");
 function dbGet(sql, params = []) {
     return new Promise((resolve, reject) => {
         db.get(sql, params, (err, row) => {
@@ -386,6 +386,10 @@ async function validateGoogleDriveAccess(url) {
 
     try {
         const response = await fetch(downloadUrl, {
+            dispatcher:
+                process.env.HTTPS_PROXY || process.env.HTTP_PROXY
+                    ? new ProxyAgent(process.env.HTTPS_PROXY || process.env.HTTP_PROXY)
+                    : undefined,
             redirect: "follow",
             headers: {
                 "User-Agent": "Mozilla/5.0",
@@ -428,7 +432,13 @@ async function validateGoogleDriveAccess(url) {
             fileId,
             message: "Link Google Drive bài thi hợp lệ và có thể truy cập công khai",
         };
-    } catch {
+    } catch (error) {
+        console.error(
+            "[GoogleDriveValidation]",
+            error?.message,
+            error
+        );
+
         return {
             valid: false,
             public: false,
