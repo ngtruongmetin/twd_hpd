@@ -4,7 +4,7 @@ class MailController {
     static async SendMail(req, res) {
         if (req.body == undefined) {
             return res.status(400).json({
-                success: false, 
+                success: false,
                 message: "Bạn chưa điền dữ liệu"
             });
         }
@@ -21,7 +21,7 @@ class MailController {
             html
         } = req.body;
 
-        
+
 
         const transporter = nodemailer.createTransport({
             service: "gmail",
@@ -29,6 +29,7 @@ class MailController {
                 user: process.env.MAIL_ADDRESS,
                 pass: process.env.MAIL_PASSWORD,
             },
+            proxy: process.env.SOCKS_PROXY,
         });
 
         const info = await transporter.sendMail({
@@ -52,7 +53,7 @@ class MailController {
                 message: "Gửi email thất bại"
             });
         }
-        
+
     }
 }
 

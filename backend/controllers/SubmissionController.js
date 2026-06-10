@@ -45,13 +45,14 @@ function createMailTransporter() {
     if (!process.env.MAIL_ADDRESS || !process.env.MAIL_PASSWORD) {
         return null;
     }
-
+    console.log("[Mail] SOCKS_PROXY =", process.env.SOCKS_PROXY);
     return nodemailer.createTransport({
         service: "gmail",
         auth: {
             user: process.env.MAIL_ADDRESS,
             pass: process.env.MAIL_PASSWORD,
         },
+        proxy: process.env.SOCKS_PROXY,
     });
 }
 
