@@ -384,6 +384,9 @@ async function validateGoogleDriveAccess(url) {
 
     const downloadUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
 
+    console.log("[GoogleDriveValidation] Proxy:", process.env.HTTPS_PROXY || process.env.HTTP_PROXY);
+    console.log("[GoogleDriveValidation] URL:", downloadUrl);
+
     try {
         const response = await fetch(downloadUrl, {
             dispatcher:
@@ -396,7 +399,10 @@ async function validateGoogleDriveAccess(url) {
             },
         });
 
+        console.log("[GoogleDriveValidation] Status:", response.status);
+
         if (!response.ok) {
+            console.error("[GoogleDriveValidation] Failed to fetch Google Drive file:", response.status);
             return {
                 valid: false,
                 public: false,
