@@ -11,9 +11,7 @@ function escapeHtml(value) {
 }
 
 function createGmailTransporter() {
-  console.log("[Mail] SOCKS_PROXY =", process.env.SOCKS_PROXY);
-
-  return nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.MAIL_ADDRESS,
@@ -21,6 +19,12 @@ function createGmailTransporter() {
     },
     proxy: process.env.SOCKS_PROXY,
   });
+
+  if (process.env.SOCKS_PROXY) {
+    transporter.set("proxy_socks_module", require("socks"));
+  }
+
+  return transporter;
 }
 
 async function sendAccountCredentialsEmail({ toEmail, username, password, fullName }) {

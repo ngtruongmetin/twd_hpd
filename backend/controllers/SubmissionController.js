@@ -45,8 +45,8 @@ function createMailTransporter() {
     if (!process.env.MAIL_ADDRESS || !process.env.MAIL_PASSWORD) {
         return null;
     }
-    console.log("[Mail] SOCKS_PROXY =", process.env.SOCKS_PROXY);
-    return nodemailer.createTransport({
+
+    const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
             user: process.env.MAIL_ADDRESS,
@@ -54,6 +54,12 @@ function createMailTransporter() {
         },
         proxy: process.env.SOCKS_PROXY,
     });
+
+    if (process.env.SOCKS_PROXY) {
+        transporter.set("proxy_socks_module", require("socks"));
+    }
+
+    return transporter;
 }
 
 function formatDateTimeForMail(value) {

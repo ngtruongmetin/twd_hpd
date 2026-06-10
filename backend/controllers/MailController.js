@@ -32,6 +32,10 @@ class MailController {
             proxy: process.env.SOCKS_PROXY,
         });
 
+        if (process.env.SOCKS_PROXY) {
+            transporter.set("proxy_socks_module", require("socks"));
+        }
+
         const info = await transporter.sendMail({
             from: `"Ban chỉ huy Trung ương chiến dịch Hoa Phượng Đỏ" <${process.env.MAIL_ADDRESS}>`,
             to: to_email,
