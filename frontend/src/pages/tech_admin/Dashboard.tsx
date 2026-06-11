@@ -26,6 +26,7 @@ const quickActions = [
     title: 'Bài thi và kết quả',
     description: 'Quản trị submission, chấm điểm và bảng tổng kết.',
     meta: 'submissions, submission_results',
+    to: '/dashboard/tech_admin/submissions',
   },
   {
     title: 'An ninh hệ thống',

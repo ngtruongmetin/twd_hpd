@@ -17,10 +17,10 @@ function createGmailTransporter() {
       user: process.env.MAIL_ADDRESS,
       pass: process.env.MAIL_PASSWORD,
     },
-    proxy: process.env.SOCKS_PROXY,
+    proxy: process.env.BYPASS_PROXY ? null : process.env.SOCKS_PROXY,
   });
 
-  if (process.env.SOCKS_PROXY) {
+  if (!process.env.BYPASS_PROXY && process.env.SOCKS_PROXY) {
     transporter.set("proxy_socks_module", require("socks"));
   }
 
