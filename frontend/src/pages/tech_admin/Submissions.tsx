@@ -93,7 +93,7 @@ export default function TechAdminSubmissions() {
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
       setResults((resultRes.data?.data ?? []) as ResultRow[])
     } catch (err: unknown) {
-      setError(normalizeError(err, 'KhÃ´ng táº£i Ä‘Æ°á»£c dá»¯ liá»‡u bÃ i ná»™p.'))
+      setError(normalizeError(err, 'Không tải được dữ liệu bài nộp.'))
     } finally {
       setLoading(false)
     }
@@ -179,16 +179,16 @@ export default function TechAdminSubmissions() {
   }, [filteredRows, provinceFilter])
 
   async function handleDeleteSubmission(id: number) {
-    if (!window.confirm(`XÃ³a bÃ i ná»™p #${id}?`)) return
+    if (!window.confirm(`Xóa bài nộp #${id}?`)) return
     setDeletingId(id)
     setError('')
     setMessage('')
     try {
       await api.delete(`/api/v1/submissions/${id}`)
-      setMessage('ÄÃ£ xÃ³a bÃ i ná»™p.')
+      setMessage('Đã xóa bài nộp.')
       await loadData()
     } catch (err: unknown) {
-      setError(normalizeError(err, 'KhÃ´ng xÃ³a Ä‘Æ°á»£c bÃ i ná»™p.'))
+      setError(normalizeError(err, 'Không xóa được bài nộp.'))
     } finally {
       setDeletingId(null)
     }
@@ -217,9 +217,9 @@ export default function TechAdminSubmissions() {
         }),
         getExportFileName(),
       )
-      setMessage('File Excel Ä‘Ã£ sáºµn sÃ ng vÃ  Ä‘ang Ä‘Æ°á»£c táº£i xuá»‘ng.')
+      setMessage('File Excel đã sẵn sàng và đang được tải xuống.')
     } catch (err: unknown) {
-      setError(normalizeError(err, 'KhÃ´ng xuáº¥t Ä‘Æ°á»£c file bÃ i ná»™p.'))
+      setError(normalizeError(err, 'Không xuất được file bài nộp.'))
     } finally {
       setExporting(false)
     }
@@ -230,31 +230,35 @@ export default function TechAdminSubmissions() {
       <Navbar />
       <section className="vb-admin-hero vb-card vb-card-editorial">
         <div className="vb-admin-hero-copy">
-          <p className="vb-overline">Quáº£n trá»‹ ká»¹ thuáº­t</p>
-          <h1>Quáº£n lÃ½ bÃ i thi vÃ  káº¿t quáº£</h1>
+          <p className="vb-overline">Hỗ trợ kỹ thuật</p>
+          <h1>Quản lý bài nộp</h1>
           <p className="vb-admin-lead">
-            Xem lá»c theo báº£ng thi, tá»‰nh/thÃ nh vÃ  tÃ¬m kiáº¿m nhanh theo tiÃªu Ä‘á», ngÆ°á»i ná»™p, phÆ°á»ng, báº£ng thi.
+            Lọc theo bảng thi, tỉnh/thành và tìm kiếm theo tiêu đề, người nộp, phường, bảng thi.
           </p>
         </div>
       </section>
 
       {error ? <section className="vb-account-banner is-error">{error}</section> : null}
       {message ? <section className="vb-account-banner">{message}</section> : null}
-      {loading ? <section className="vb-account-banner">Äang táº£i dá»¯ liá»‡u...</section> : null}
+      {loading ? <section className="vb-account-banner">Đang tải dữ liệu...</section> : null}
 
       <section className="vb-tw-stats-grid vb-tw-stats-grid-2">
         <article className="vb-season-panel vb-province-kpi-card">
-          <p className="vb-overline">BÃ i ná»™p</p>
+          <p className="vb-overline">Bài nộp</p>
           <strong className="vb-province-kpi-value">{kpiStats.totalSubmissions}</strong>
-          <span className="vb-province-kpi-label">Sá»‘ bÃ i dá»± thi theo bá»™ lá»c hiá»‡n táº¡i.</span>
+          <span className="vb-province-kpi-label">
+            Số bài dự thi theo bộ lọc hiện tại.
+          </span>
         </article>
         <article className="vb-season-panel vb-province-kpi-card">
           <p className="vb-overline">
-            {provinceFilter === 'ALL' ? 'Tá»‰nh/thÃ nh tham gia' : 'PhÆ°á»ng tham gia'}
+            {provinceFilter === 'ALL' ? 'Tỉnh/thành tham gia' : 'Phường tham gia'}
           </p>
           <strong className="vb-province-kpi-value">{kpiStats.uniqueRegions}</strong>
           <span className="vb-province-kpi-label">
-            {provinceFilter === 'ALL' ? 'Sá»‘ tá»‰nh/thÃ nh tham gia.' : 'Sá»‘ phÆ°á»ng tham gia.'}
+            {provinceFilter === 'ALL'
+              ? 'Số tỉnh/thành tham gia.'
+              : 'Số phường tham gia.'}
           </span>
         </article>
       </section>
@@ -262,34 +266,34 @@ export default function TechAdminSubmissions() {
       <section className="vb-season-panel">
         <div className="vb-section-head is-compact">
           <div>
-            <p className="vb-overline">Danh sÃ¡ch</p>
-            <h2>ThÃ´ng tin bÃ i ná»™p</h2>
+            <p className="vb-overline">Danh sách</p>
+            <h2>Thông tin bài nộp</h2>
           </div>
-          <p className="vb-section-note">{filteredRows.length} bÃ i ná»™p khá»›p Ä‘iá»u kiá»‡n hiá»‡n táº¡i.</p>
+          <p className="vb-section-note">{filteredRows.length} bài nộp khớp điều kiện hiện tại.</p>
         </div>
 
         <div className="vb-tw-toolbar-row">
           <div className="vb-account-search">
-            <label htmlFor="tech-submission-search">TÃ¬m kiáº¿m</label>
+            <label htmlFor="tech-submission-search">Tìm kiếm</label>
             <input
               id="tech-submission-search"
               className="vb-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="TiÃªu Ä‘á», ngÆ°á»i ná»™p, tá»‰nh/thÃ nh, phÆ°á»ng, báº£ng thi..."
+              placeholder="Tiêu đề, người nộp, tỉnh/thành, phường, bảng thi..."
             />
           </div>
 
           <div className="vb-account-filters" style={{ gridColumn: 'auto' }}>
             <div>
-              <label htmlFor="tech-table-filter">Báº£ng thi</label>
+              <label htmlFor="tech-table-filter">Bảng thi</label>
               <select
                 id="tech-table-filter"
                 className="vb-select"
                 value={tableFilter}
                 onChange={(e) => setTableFilter(e.target.value)}
               >
-                <option value="ALL">Táº¥t cáº£ báº£ng thi</option>
+                <option value="ALL">Tất cả bảng thi</option>
                 {tableOptions.map((table) => (
                   <option key={table.id} value={table.id}>
                     {table.name}
@@ -298,14 +302,14 @@ export default function TechAdminSubmissions() {
               </select>
             </div>
             <div>
-              <label htmlFor="tech-province-filter">Tá»‰nh/ThÃ nh</label>
+              <label htmlFor="tech-province-filter">Tỉnh/Thành</label>
               <select
                 id="tech-province-filter"
                 className="vb-select"
                 value={provinceFilter}
                 onChange={(e) => setProvinceFilter(e.target.value)}
               >
-                <option value="ALL">Táº¥t cáº£ tá»‰nh/thÃ nh</option>
+                <option value="ALL">Tất cả tỉnh/thành</option>
                 {provinceOptions.map((item) => (
                   <option key={item.label} value={item.label}>
                     {item.label}
@@ -322,7 +326,7 @@ export default function TechAdminSubmissions() {
               onClick={() => void handleExportSubmissions()}
               disabled={exporting}
             >
-              {exporting ? 'Äang xuáº¥t...' : 'Xuáº¥t Excel'}
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
             </button>
           </div>
         </div>
@@ -331,14 +335,14 @@ export default function TechAdminSubmissions() {
           <table className="vb-account-table">
             <thead>
               <tr>
-                <th>Báº£ng thi</th>
-                <th>NgÆ°á»i ná»™p</th>
-                <th>TiÃªu Ä‘á»</th>
-                <th>BÃ i thi</th>
-                <th>Äiá»ƒm bÃ¬nh chá»n</th>
-                <th>Äiá»ƒm bÃ i thi</th>
-                <th>Tá»•ng Ä‘iá»ƒm</th>
-                <th>XÃ³a</th>
+                <th>Bảng thi</th>
+                <th>Người nộp</th>
+                <th>Tiêu đề</th>
+                <th>Bài thi</th>
+                <th>Điểm bình chọn</th>
+                <th>Điểm bài thi</th>
+                <th>Tổng điểm</th>
+                <th>Xóa</th>
               </tr>
             </thead>
             <tbody>
@@ -352,7 +356,7 @@ export default function TechAdminSubmissions() {
                     <td>
                       {row.video_url ? (
                         <a className="vb-tw-btn-link" href={row.video_url} target="_blank" rel="noreferrer">
-                          Xem bÃ i thi
+                          Xem bài thi
                         </a>
                       ) : (
                         'N/A'
@@ -369,7 +373,7 @@ export default function TechAdminSubmissions() {
                         className="vb-tw-btn-danger"
                         onClick={() => void handleDeleteSubmission(row.id)}
                       >
-                        {deletingId === row.id ? 'Äang xÃ³a...' : 'XÃ³a'}
+                        {deletingId === row.id ? 'Đang xóa...' : 'Xóa'}
                       </button>
                     </td>
                   </tr>
@@ -386,11 +390,9 @@ export default function TechAdminSubmissions() {
             disabled={safePage <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
-            Trang trÆ°á»›c
+            Trang trước
           </button>
-          <span>
-            Trang {safePage}/{totalPages}
-          </span>
+          <span>Trang {safePage}/{totalPages}</span>
           <button
             type="button"
             className="vb-tw-btn-muted"

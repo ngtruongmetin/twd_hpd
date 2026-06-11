@@ -21,6 +21,8 @@ export default function ForgotPassword() {
         email,
       })
       setSuccess(response.data?.message || 'Yêu cầu đặt lại mật khẩu đã được gửi.')
+      setUsername('')
+      setEmail('')
     } catch (err: unknown) {
       setError(
         typeof err === 'object' && err !== null && 'response' in err
@@ -37,7 +39,7 @@ export default function ForgotPassword() {
       <section className="vb-auth-wrap">
         <form className="vb-auth-card" onSubmit={onSubmit}>
           <img src="/logo.png" alt="Logo cuộc thi" className="vb-auth-logo" />
-          <h1 className="vb-auth-title">Quên mật khẩu</h1>
+          <h1 className="vb-auth-title">Lấy lại mật khẩu</h1>
 
           <div className="vb-field">
             <input
@@ -72,7 +74,7 @@ export default function ForgotPassword() {
           {success && <p className="vb-form-success">{success}</p>}
 
           <button type="submit" className="vb-btn vb-btn-primary vb-btn-full" disabled={loading}>
-            {loading ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu quên mật khẩu'}
+            {loading ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu'}
           </button>
 
           <p className="vb-auth-helper">

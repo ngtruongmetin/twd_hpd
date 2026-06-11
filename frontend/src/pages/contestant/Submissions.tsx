@@ -32,7 +32,6 @@ type SubmissionRow = {
     submitted_by_user_id?: number | null
     description: string | null
     video_url: string | null
-    note: string | null
     author_full_name: string | null
     author_province_name: string | null
     author_ward_name: string | null
@@ -50,7 +49,6 @@ type SubmissionForm = {
     title: string
     summary: string
     driveUrl: string
-    note: string
     otherMembers: string
 }
 
@@ -67,7 +65,6 @@ const initialForm: SubmissionForm = {
     title: '',
     summary: '',
     driveUrl: '',
-    note: '',
     otherMembers: '',
 }
 
@@ -336,7 +333,6 @@ export default function ContestantSubmissions() {
                 title: form.title,
                 description: form.summary,
                 video_url: form.driveUrl,
-                note: form.note || null,
                 other_members: form.otherMembers || null,
             })
 
@@ -528,7 +524,7 @@ export default function ContestantSubmissions() {
                                 </label>
                             </div>
 
-                            <div className="vb-field">
+                            <div className="vb-field vb-full">
                                 <input
                                     id="driveUrl"
                                     className="vb-input"
@@ -545,18 +541,7 @@ export default function ContestantSubmissions() {
                                 ) : null}
                             </div>
 
-                            <div className="vb-field">
-                                <input
-                                    id="note"
-                                    className="vb-input"
-                                    placeholder=" "
-                                    value={form.note}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-                                />
-                                <label className="vb-float-label" htmlFor="note">
-                                    Ghi chú cho BTC
-                                </label>
-                            </div>
+
                         </div>
 
                         <div className="vb-modal-actions">
@@ -578,11 +563,7 @@ export default function ContestantSubmissions() {
                             <p className="vb-form-error vb-form-submit-error">Cuộc thi này đã đóng nộp bài.</p>
                         ) : null}
 
-                        {!profileReady ? (
-                            <p className="vb-form-error">
-                                Bạn cần bổ sung email, số điện thoại, tỉnh/thành, phường/xã và link Google Drive bài thi hợp lệ trước khi nộp bài.
-                            </p>
-                        ) : null}
+
                         {success ? <p className="vb-form-success vb-form-submit-success">{success}</p> : null}
                     </form>
                 </article>

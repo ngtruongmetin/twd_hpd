@@ -339,10 +339,6 @@ function getContestantProfileIssues(user) {
         issues.push({ key: "ward_name", label: "phường/xã" });
     }
 
-    if (!isFacebookLink(user?.facebook_post_url || "")) {
-        issues.push({ key: "facebook_post_url", label: "link Facebook thẻ chiến sĩ Hoa phượng đỏ" });
-    }
-
     return issues;
 }
 
@@ -540,7 +536,6 @@ class SubmissionController {
             const description = String(body.description || body.summary || "").trim();
             const driveUrl = String(body.video_url || body.drive_url || body.videoUrl || "").trim();
             const fileName = String(body.file_name || body.fileName || "").trim();
-            const note = String(body.note || "").trim();
             const otherMembersRaw = String(body.other_members || body.otherMembers || "").trim();
             const seasonId = Number(body.season_id || body.seasonId);
             const competitionTableId = Number(body.competition_table_id || body.competitionTableId);
@@ -620,7 +615,6 @@ class SubmissionController {
                         title,
                         description,
                         video_url,
-                        note,
 
                         author_full_name,
                         author_province_name,
@@ -634,7 +628,7 @@ class SubmissionController {
 
                         status
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')`,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')`,
                     [
                         seasonId,
                         competitionTableId,
@@ -643,7 +637,6 @@ class SubmissionController {
                         title,
                         description,
                         driveUrl,
-                        note || null,
 
                         authorSnapshot.full_name || null,
                         authorSnapshot.province_name || null,
@@ -692,7 +685,6 @@ class SubmissionController {
                         title,
                         description,
                         video_url: driveUrl,
-                        note: note || null,
                         author_full_name: authorSnapshot.full_name || null,
                         author_province_name: authorSnapshot.province_name || null,
                         author_ward_name: authorSnapshot.ward_name || null,
@@ -721,7 +713,6 @@ class SubmissionController {
             const title = String(body.title || "").trim();
             const description = String(body.description || body.summary || "").trim();
             const driveUrl = String(body.video_url || body.drive_url || body.videoUrl || "").trim();
-            const note = String(body.note || "").trim();
             const otherMembersRaw = String(body.other_members || body.otherMembers || "").trim();
 
             if (!title || !description || !driveUrl) {
@@ -744,7 +735,6 @@ class SubmissionController {
                 SET title = ?,
                     description = ?,
                     video_url = ?,
-                    note = ?,
                     other_members = ?,
                     drive_file_id = ?,
                     drive_is_public = ?,
@@ -755,7 +745,6 @@ class SubmissionController {
                 title,
                 description,
                 driveUrl,
-                note || null,
                 otherMembers.length > 0 ? otherMembers.join("; ") : null,
                 driveValidation.fileId || null,
                 driveValidation.public ? 1 : 0,
