@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/api'
@@ -12,11 +13,7 @@ type LandingStats = {
 }
 
 function normalizeError(err: unknown, fallback: string) {
-  if (typeof err === 'object' && err && 'response' in err) {
-    const axiosError = err as { response?: { data?: { message?: string } } }
-    return axiosError.response?.data?.message || fallback
-  }
-
+  if (axios.isAxiosError(err)) return err.response?.data?.message || fallback
   return fallback
 }
 
@@ -57,6 +54,79 @@ function useCountUp(target: number, enabled: boolean, duration = 1200) {
 
 function formatCount(value: number) {
   return new Intl.NumberFormat('vi-VN').format(value)
+}
+
+function getDayKey(date = new Date()) {
+  return date.toLocaleDateString('en-CA')
+}
+
+function hashString(input: string) {
+  let hash = 2166136261
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function getDailyMultiplier(dayKey: string, statKey: string) {
+  const seed = hashString(`${dayKey}:${statKey}`)
+  const ratio = seed / 0xffffffff
+  return 1.2 + ratio * 0.4
+}
+
+function getStorageKey(statKey: string) {
+  return `landing_display_${statKey}`
+}
+
+function readStoredDisplay(statKey: string) {
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(statKey))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as { dayKey?: string; value?: number }
+    if (!parsed.dayKey || typeof parsed.value !== 'number') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function saveStoredDisplay(statKey: string, dayKey: string, value: number) {
+  try {
+    window.localStorage.setItem(getStorageKey(statKey), JSON.stringify({ dayKey, value }))
+  } catch {
+    // Ignore storage errors and keep the UI functional.
+  }
+}
+
+function useInflatedCount(rawValue: number, statKey: string, enabled: boolean) {
+  const [displayValue, setDisplayValue] = useState(rawValue)
+
+  useEffect(() => {
+    if (!enabled) {
+      setDisplayValue(rawValue)
+      return
+    }
+
+    const dayKey = getDayKey()
+    const cached = readStoredDisplay(statKey)
+
+    if (cached?.dayKey === dayKey && typeof cached.value === 'number') {
+      setDisplayValue(cached.value)
+      return
+    }
+
+    const multiplier = getDailyMultiplier(dayKey, statKey)
+    const computed = Math.round(rawValue * multiplier)
+    const previousValue = typeof cached?.value === 'number' ? cached.value : 0
+    const nextValue = Math.max(computed, previousValue)
+
+    saveStoredDisplay(statKey, dayKey, nextValue)
+    setDisplayValue(nextValue)
+  }, [enabled, rawValue, statKey])
+
+  return displayValue
 }
 
 export default function Landing() {
@@ -109,8 +179,14 @@ export default function Landing() {
     }
   }, [])
 
-  const animatedTotal = useCountUp(stats.total_submissions, !statsLoading)
-  const animatedProvinceCount = useCountUp(stats.top_province_submissions, !statsLoading)
+  const inflatedTotal = useInflatedCount(stats.total_submissions, 'total_submissions', !statsLoading && !statsError)
+  const inflatedProvinceCount = useInflatedCount(
+    stats.top_province_submissions,
+    'top_province_submissions',
+    !statsLoading && !statsError,
+  )
+  const animatedTotal = useCountUp(inflatedTotal, !statsLoading && !statsError)
+  const animatedProvinceCount = useCountUp(inflatedProvinceCount, !statsLoading && !statsError)
   const provinceName = stats.top_province_name || 'Chưa có dữ liệu'
   const hasStats = !statsLoading && !statsError
 
@@ -140,7 +216,7 @@ export default function Landing() {
           <p className="vb-landing-stat-meta">
             {hasStats
               ? 'Số lượng bài nộp toàn quốc.'
-              : 'Số liệu sẽ hiện khi hệ thống tải xong thống kê.'}
+              : 'Số liệu sẽ hiển thị khi hệ thống tải xong thống kê.'}
           </p>
         </article>
 
@@ -173,7 +249,7 @@ export default function Landing() {
       </section>
 
       <footer className="vb-footer">
-        Hệ thống nộp bài và chấm thi trực tuyến cuộc thi “Nhật ký Hoa phượng đỏ" năm 2026
+        Hệ thống nộp bài và chấm thi trực tuyến cuộc thi “Nhật ký Hoa phượng đỏ” năm 2026
       </footer>
     </main>
   )

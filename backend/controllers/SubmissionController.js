@@ -52,10 +52,10 @@ function createMailTransporter() {
             user: process.env.MAIL_ADDRESS,
             pass: process.env.MAIL_PASSWORD,
         },
-        proxy: process.env.SOCKS_PROXY,
+        proxy: process.env.BYPASS_PROXY ? null : process.env.SOCKS_PROXY,
     });
 
-    if (process.env.SOCKS_PROXY) {
+    if (!process.env.BYPASS_PROXY && process.env.SOCKS_PROXY) {
         transporter.set("proxy_socks_module", require("socks"));
     }
 
@@ -391,14 +391,15 @@ async function validateGoogleDriveAccess(url) {
 
     const downloadUrl = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
 
-    console.log("[GoogleDriveValidation] Proxy:", process.env.HTTPS_PROXY || process.env.HTTP_PROXY);
+    const proxyUrl = process.env.BYPASS_PROXY ? null : (process.env.HTTPS_PROXY || process.env.HTTP_PROXY);
+    console.log("[GoogleDriveValidation] Proxy:", proxyUrl || "(none - bypassed)");
     console.log("[GoogleDriveValidation] URL:", downloadUrl);
 
     try {
         const response = await fetch(downloadUrl, {
             dispatcher:
-                process.env.HTTPS_PROXY || process.env.HTTP_PROXY
-                    ? new ProxyAgent(process.env.HTTPS_PROXY || process.env.HTTP_PROXY)
+                proxyUrl
+                    ? new ProxyAgent(proxyUrl)
                     : undefined,
             redirect: "follow",
             headers: {

@@ -130,7 +130,9 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <Link to="/login">Đăng nhập</Link>
+            <span className="vb-nav-login-box">
+              <Link to="/login">Đăng nhập</Link>
+            </span>
           )}
         </nav>
 
