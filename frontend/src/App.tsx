@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import CompleteProfile from './pages/CompleteProfile'
 import DashboardRedirect from './pages/DashboardRedirect'
+import ForgotPassword from './pages/ForgotPassword'
 import TechAdminDashboard from './pages/tech_admin/Dashboard'
 import TechAdminAccounts from './pages/tech_admin/Accounts'
 import TechAdminSeasons from './pages/tech_admin/Seasons'
@@ -30,6 +31,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register" element={<Register />} />
           <Route path="/complete-profile" element={<RequireAuth><CompleteProfile /></RequireAuth>} />
           <Route path="/dashboard" element={<RequireAuth><DashboardRedirect /></RequireAuth>} />

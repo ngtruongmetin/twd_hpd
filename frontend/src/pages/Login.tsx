@@ -96,6 +96,9 @@ export default function Login() {
           </button>
 
           <p className="vb-auth-helper">
+            Quên mật khẩu? <Link to="/forgot-password">Lấy lại mật khẩu</Link>
+          </p>
+          <p className="vb-auth-helper">
             Chưa có tài khoản? <Link to="/register">Đăng ký tại đây</Link>
           </p>
           <p className="vb-auth-helper">
