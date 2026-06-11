@@ -72,8 +72,7 @@ export default function ContestantDashboard() {
 
   const profileReady = Boolean(
     draft.email.trim() &&
-    draft.phone.trim() &&
-    isFacebookLink(draft.facebook_post_url.trim()),
+    draft.phone.trim(),
   )
 
   async function handleSaveDraft() {

@@ -120,7 +120,7 @@ export default function Navbar() {
 
         <nav className="vb-desktop-nav">
           {!loading && user ? (
-            <>
+            <span className="vb-nav-login-box">
               <Link to={dashboardPath}>Dashboard</Link>
               <button type="button" className="vb-nav-action" onClick={() => setPasswordModalOpen(true)}>
                 Đổi mật khẩu
@@ -128,9 +128,11 @@ export default function Navbar() {
               <button type="button" className="vb-nav-action" onClick={handleLogout}>
                 Đăng xuất
               </button>
-            </>
+            </span>
           ) : (
-            <Link to="/login">Đăng nhập</Link>
+            <span className="vb-nav-login-box">
+              <Link to="/login">Đăng nhập</Link>
+            </span>
           )}
         </nav>
 

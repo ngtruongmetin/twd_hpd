@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const db = require("../utils/db");
 const bcrypt = require("bcrypt");
-const { sendAccountCredentialsEmail } = require("../utils/mailer");
+const { sendPasswordResetEmail } = require("../utils/mailer");
 
 function GenerateRandomPassword(length = 10) {
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -52,7 +52,7 @@ class PasswordController {
 
         res.json({ password });
     }
-    
+
     static async ForgotPassword(req, res) {
         const { username, email } = req.body;
         if (!username || !email) {
@@ -83,11 +83,13 @@ class PasswordController {
 
             await runAsync(`UPDATE users SET password_hash = ? WHERE username = ?`, [hashedPassword, username]);
 
-            await sendAccountCredentialsEmail({
+            void sendPasswordResetEmail({
                 toEmail: email,
                 username,
                 password: newPassword,
                 fullName: row.full_name,
+            }).catch((mailErr) => {
+                console.error("Failed to send password reset email:", mailErr?.message || mailErr);
             });
 
             return res.json({

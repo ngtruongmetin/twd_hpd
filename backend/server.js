@@ -8,7 +8,7 @@ const dotenv = require("dotenv");
 const db = require("./utils/db");
 dotenv.config();
 
-const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+const proxyUrl = process.env.BYPASS_PROXY ? null : (process.env.HTTPS_PROXY || process.env.HTTP_PROXY);
 
 if (proxyUrl) {
   const { ProxyAgent, setGlobalDispatcher } = require("undici");
@@ -16,6 +16,8 @@ if (proxyUrl) {
   setGlobalDispatcher(new ProxyAgent(proxyUrl));
 
   console.log(`Global fetch dispatcher set to proxy ${proxyUrl}`);
+} else if (process.env.BYPASS_PROXY) {
+  console.log("Proxy bypassed (BYPASS_PROXY=true)");
 }
 const app = express();
 
