@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 
@@ -74,6 +74,10 @@ export default function TwAdminSubmissions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [publishTarget, setPublishTarget] = useState<SubmissionRow | null>(null)
+  const [publishLink, setPublishLink] = useState('')
+  const [publishError, setPublishError] = useState('')
+  const [publishLoading, setPublishLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [tableFilter, setTableFilter] = useState('ALL')
   const [provinceFilter, setProvinceFilter] = useState('ALL')
@@ -191,6 +195,48 @@ export default function TwAdminSubmissions() {
       setError(normalizeError(err, 'Không xóa được bài nộp.'))
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  function openPublishDialog(submission: SubmissionRow) {
+    setPublishTarget(submission)
+    setPublishLink('')
+    setPublishError('')
+    setPublishLoading(false)
+  }
+
+  function closePublishDialog() {
+    setPublishTarget(null)
+    setPublishLink('')
+    setPublishError('')
+    setPublishLoading(false)
+  }
+
+  async function handleSendPublishNotification(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!publishTarget) return
+
+    setPublishError('')
+    setMessage('')
+    setPublishLoading(true)
+
+    if (!publishLink.trim()) {
+      setPublishError('Vui lòng nhập link bài Facebook.')
+      setPublishLoading(false)
+      return
+    }
+
+    try {
+      await api.post(`/api/v1/submissions/${publishTarget.id}/notify-facebook`, {
+        facebook_post_url: publishLink.trim(),
+      })
+      setMessage('Email thông báo đã được gửi tới thí sinh.')
+      closePublishDialog()
+      await loadData()
+    } catch (err: unknown) {
+      setPublishError(normalizeError(err, 'Không gửi được thông báo email.'))
+    } finally {
+      setPublishLoading(false)
     }
   }
 
@@ -375,6 +421,13 @@ export default function TwAdminSubmissions() {
                       >
                         {deletingId === row.id ? 'Đang xóa...' : 'Xóa'}
                       </button>
+                      <button
+                        type="button"
+                        className="vb-tw-btn-primary"
+                        onClick={() => openPublishDialog(row)}
+                      >
+                        Thông báo
+                      </button>
                     </td>
                   </tr>
                 )
@@ -382,6 +435,43 @@ export default function TwAdminSubmissions() {
             </tbody>
           </table>
         </div>
+
+        {publishTarget ? (
+          <div className="vb-modal-backdrop" role="presentation" onClick={closePublishDialog}>
+            <section className="vb-modal" role="dialog" aria-modal="true" aria-labelledby="publish-notify-title" onClick={(event) => event.stopPropagation()}>
+              <div className="vb-modal-head">
+                <p className="vb-overline">Gửi thông báo</p>
+                <h2 id="publish-notify-title">Thông báo bài đăng Facebook</h2>
+                <button type="button" className="vb-modal-close" onClick={closePublishDialog}>Hủy</button>
+              </div>
+              <form className="vb-modal-body vb-modal-form" onSubmit={handleSendPublishNotification}>
+                <p className="vb-modal-description">
+                  Gửi email thông báo cho thí sinh <strong>{publishTarget.author_full_name || 'người dự thi'}</strong>.
+                </p>
+                <div className="vb-field">
+                  <input
+                    id="facebook_post_url"
+                    className="vb-input"
+                    placeholder=" "
+                    value={publishLink}
+                    onChange={(e) => setPublishLink(e.target.value)}
+                    required
+                  />
+                  <label className="vb-float-label" htmlFor="facebook_post_url">Link bài Facebook</label>
+                </div>
+                {publishError ? <p className="vb-form-error">{publishError}</p> : null}
+                <div className="vb-modal-actions">
+                  <button type="button" className="vb-tw-btn-muted" onClick={closePublishDialog} disabled={publishLoading}>
+                    Hủy
+                  </button>
+                  <button type="submit" className="vb-tw-btn-primary" disabled={publishLoading}>
+                    {publishLoading ? 'Đang gửi...' : 'Gửi email'}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        ) : null}
 
         <div className="vb-tw-pagination">
           <button

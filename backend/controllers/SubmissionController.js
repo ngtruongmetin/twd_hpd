@@ -62,6 +62,73 @@ function createMailTransporter() {
     return transporter;
 }
 
+async function sendFacebookPublicationNotificationEmail({ user, facebookPostUrl }) {
+    const transporter = createMailTransporter();
+    const subject = "Bài thi của bạn đã được đăng trên fanpage Thanh niên trường học";
+    const safeFullName = escapeHtml(user.full_name || user.username || "bạn");
+    const safeFacebookLink = escapeHtml(facebookPostUrl);
+    const text = [
+        "Chúc mừng bạn, bài thi của bạn đã được đăng bài trên fanpage Thanh niên trường học.",
+        "",
+        `Link bài Facebook: ${facebookPostUrl}`,
+        "",
+        "Cảm ơn bạn đã tham gia và chúc bạn tiếp tục có nhiều đóng góp ý nghĩa.",
+    ].join("\n");
+
+    const html = `
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8" />
+      </head>
+      <body style="margin:0;padding:0;background:#f5f7fb;font-family:'Be Vietnam Pro','Segoe UI',Tahoma,Arial,sans-serif;color:#111">
+        <div style="max-width:680px;margin:0 auto;padding:28px 18px">
+          <div style="border:1px solid #e5e7eb;border-top:5px solid #2563eb;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.08)">
+            <div style="padding:26px 28px;border-bottom:1px solid #e5e7eb;background:#e0f2fe">
+              <p style="margin:0 0 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#2563eb">Thông báo bài thi</p>
+              <h1 style="margin:0;font-size:28px;line-height:1.2;font-weight:800;color:#0f172a">Chúc mừng, bài thi của bạn đã được đăng</h1>
+            </div>
+            <div style="padding:24px 28px">
+              <p style="margin:0 0 16px;font-size:16px;line-height:1.8;color:#334155">Xin chào <strong style="color:#0f172a">${safeFullName}</strong>,</p>
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.75;color:#475569">Chúc mừng bạn, bài thi của bạn đã được đăng bài trên fanpage <strong>Thanh niên trường học</strong>.</p>
+              <div style="margin:0 0 18px;padding:20px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc">
+                <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:.05em">Link bài Facebook</p>
+                <a href="${safeFacebookLink}" style="display:inline-block;color:#1d4ed8;text-decoration:none;font-size:15px;line-height:1.7;word-break:break-all">${safeFacebookLink}</a>
+              </div>
+              <p style="margin:0 0 18px;font-size:15px;line-height:1.75;color:#475569">Cảm ơn bạn đã tham gia cùng chương trình. Chúng tôi rất trân trọng những ý tưởng và nỗ lực của bạn.</p>
+              <p style="margin:0;font-size:14px;line-height:1.8;color:#64748b">Nếu bạn cần hỗ trợ thêm, vui lòng trả lời email này hoặc liên hệ BTC.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    if (!transporter) {
+        return { sent: false, error: "Thiếu cấu hình MAIL_ADDRESS hoặc MAIL_PASSWORD" };
+    }
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Ban chỉ huy Trung ương chiến dịch Hoa Phượng Đỏ" <${process.env.MAIL_ADDRESS}>`,
+            to: user.email,
+            subject,
+            text,
+            html,
+            attachments: [
+                {
+                    filename: "chuhieu.png",
+                    path: CHUHIEU_PNG_PATH,
+                    cid: "chuhieu",
+                },
+            ],
+        });
+
+        return { sent: info.accepted?.length > 0, info };
+    } catch (error) {
+        return { sent: false, error: error?.message || "Không gửi được email thông báo" };
+    }
+}
+
 function formatDateTimeForMail(value) {
     if (!value) {
         return "N/A";
@@ -771,6 +838,80 @@ class SubmissionController {
             return res.status(200).json({
                 success: true,
                 message: "Cập nhật bài thi thành công",
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: getSubmissionErrorMessage(error),
+            });
+        }
+    }
+
+    static async notifySubmissionPublished(req, res) {
+        try {
+            const id = Number(req.params.id);
+            const facebookPostUrl = String(req.body?.facebook_post_url || req.body?.facebookUrl || "").trim();
+            if (!id || !facebookPostUrl) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Vui lòng cung cấp link Facebook bài đăng",
+                });
+            }
+
+            if (!isFacebookLink(facebookPostUrl)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Link Facebook không hợp lệ",
+                });
+            }
+
+            const submission = await dbGet("SELECT id, submitted_by_user_id, author_full_name FROM submissions WHERE id = ?", [id]);
+            if (!submission) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy bài thi",
+                });
+            }
+
+            const currentUser = req.session?.user;
+            const adminRoles = ["TECH_ADMIN", "TW_ADMIN", "PROVINCE_ADMIN", "JUDGE"];
+            if (!currentUser || !adminRoles.includes(currentUser.role_code)) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Bạn không có quyền gửi thông báo này",
+                });
+            }
+
+            const user = await dbGet("SELECT id, email, full_name, username FROM users WHERE id = ?", [submission.submitted_by_user_id]);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy tài khoản thí sinh",
+                });
+            }
+
+            if (!user.email || !String(user.email).trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Tài khoản thí sinh chưa có email",
+                });
+            }
+
+            const result = await sendFacebookPublicationNotificationEmail({
+                user,
+                facebookPostUrl,
+            });
+
+            if (!result.sent) {
+                return res.status(500).json({
+                    success: false,
+                    message: result.error || "Không gửi được email thông báo",
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: "Email thông báo đã được gửi đến thí sinh",
             });
         } catch (error) {
             return res.status(500).json({
