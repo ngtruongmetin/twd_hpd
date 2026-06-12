@@ -76,34 +76,169 @@ async function sendFacebookPublicationNotificationEmail({ user, facebookPostUrl 
     ].join("\n");
 
     const html = `
-      <html lang="vi">
-      <head>
-        <meta charset="UTF-8" />
-      </head>
-      <body style="margin:0;padding:0;background:#f5f7fb;font-family:'Be Vietnam Pro','Segoe UI',Tahoma,Arial,sans-serif;color:#111">
-        <div style="max-width:680px;margin:0 auto;padding:28px 18px">
-          <div style="border:1px solid #e5e7eb;border-top:5px solid #2563eb;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.08)">
-            <div style="padding:26px 28px;border-bottom:1px solid #e5e7eb;background:#e0f2fe">
-              <p style="margin:0 0 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#2563eb">Thông báo bài thi</p>
-              <h1 style="margin:0;font-size:28px;line-height:1.2;font-weight:800;color:#0f172a">Chúc mừng, bài thi của bạn đã được đăng</h1>
-            </div>
-            <div style="padding:24px 28px">
-              <p style="margin:0 0 16px;font-size:16px;line-height:1.8;color:#334155">Xin chào <strong style="color:#0f172a">${safeFullName}</strong>,</p>
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.75;color:#475569">Chúc mừng bạn, bài thi của bạn đã được đăng bài trên fanpage <strong>Thanh niên trường học</strong>.</p>
-              <div style="margin:0 0 18px;padding:20px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc">
-                <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:.05em">Link bài Facebook</p>
-                <a href="${safeFacebookLink}" style="display:inline-block;color:#1d4ed8;text-decoration:none;font-size:15px;line-height:1.7;word-break:break-all">${safeFacebookLink}</a>
-              </div>
-              <p style="margin:0 0 18px;font-size:15px;line-height:1.75;color:#475569">Cảm ơn bạn đã tham gia cùng chương trình. Chúng tôi rất trân trọng những ý tưởng và nỗ lực của bạn.</p>
-              <p style="margin:0;font-size:14px;line-height:1.8;color:#64748b">Nếu bạn cần hỗ trợ thêm, vui lòng trả lời email này hoặc liên hệ BTC.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
 
-    if (!transporter) {
+
+<html lang="vi">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+</head>
+
+<body style="margin:0;padding:0;background:#fafafa;font-family:'Be Vietnam Pro','Segoe UI',Tahoma,Arial,sans-serif;color:#111">
+
+  <div style="max-width:680px;margin:0 auto;padding:28px 18px">
+
+    <div style="border:1px solid #e5e5e5;border-top:5px solid #ef4444;background:#fff;border-radius:16px;overflow:hidden">
+
+
+
+      <div style="padding:24px 28px;border-bottom:1px solid #e5e5e5">
+
+        <img
+
+          src="cid:chuhieu"
+
+          alt="Hoa Phượng Đỏ"
+
+          style="display:block;width:220px;max-width:100%;height:auto;margin:0 auto 20px"
+
+        />
+
+
+
+        <p
+
+          style="margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.08em"
+
+        >
+
+          THÔNG BÁO BÀI ĐĂNG
+
+        </p>
+
+
+
+        <h1
+
+          style="margin:0;font-size:28px;line-height:1.25;font-weight:800;color:#111"
+
+        >
+
+          Bài thi của bạn đã được đăng trên Facebook
+
+        </h1>
+
+
+
+        <p
+
+          style="margin:14px 0 0;font-size:16px;line-height:1.75;color:#525252"
+
+        >
+
+          Xin chào <strong style="color:#111">${safeFullName}</strong>, bài thi của bạn đã được đăng tải trên fanpage Thanh niên Trường học.
+
+        </p>
+
+      </div>
+
+
+
+      <div style="padding:24px 28px">
+
+        <table
+
+          role="presentation"
+
+          width="100%"
+
+          cellspacing="0"
+
+          cellpadding="0"
+
+          style="border-collapse:collapse"
+
+        >
+
+          <tr>
+
+            <td
+
+              style="padding:12px 0;border-bottom:1px solid #e5e5e5;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase"
+
+            >
+
+              Fanpage
+
+            </td>
+
+            <td
+
+              style="padding:12px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:700"
+
+            >
+
+              Thanh niên Trường học
+
+            </td>
+
+          </tr>
+
+
+
+          <tr>
+
+            <td
+
+              style="padding:12px 0;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase"
+
+            >
+
+              Liên kết bài đăng
+
+            </td>
+
+            <td
+
+              style="padding:12px 0;text-align:right;font-weight:700;word-break:break-all"
+
+            >
+
+              <a
+
+                href="${safeFacebookLink}"
+
+                target="_blank"
+
+                style="color:#2563eb;text-decoration:none"
+
+              >
+
+                ${safeFacebookLink}
+
+              </a>
+
+            </td>
+
+          </tr>
+
+        </table>
+      </div>
+
+
+
+    </div>
+
+  </div>
+
+</body>
+
+</html>
+
+
+    `; if (!transporter) {
         return { sent: false, error: "Thiếu cấu hình MAIL_ADDRESS hoặc MAIL_PASSWORD" };
     }
 
@@ -887,21 +1022,28 @@ class SubmissionController {
                 });
             }
 
-            const result = await sendFacebookPublicationNotificationEmail({
-                user,
-                facebookPostUrl,
-            });
+            const updateResult = await dbRun(
+                "UPDATE submissions SET fb_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                [facebookPostUrl, id]
+            );
 
-            if (!result.sent) {
-                return res.status(500).json({
+            if (updateResult.changes === 0) {
+                return res.status(404).json({
                     success: false,
-                    message: result.error || "Không gửi được email thông báo",
+                    message: "Kh??ng t??m th???y b??i thi",
                 });
             }
 
+            void sendFacebookPublicationNotificationEmail({
+                user,
+                facebookPostUrl,
+            }).catch((error) => {
+                console.error("[SubmissionController] Failed to send Facebook publication email:", error);
+            });
+
             return res.status(200).json({
                 success: true,
-                message: "Email thông báo đã được gửi đến thí sinh",
+                message: "???? l??u link Facebook v?? k?ch ho?t th?ng b?o email cho th?? sinh",
             });
         } catch (error) {
             return res.status(500).json({

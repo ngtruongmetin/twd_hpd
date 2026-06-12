@@ -590,6 +590,20 @@
   padding: 0;
 }
 
+.vb-field-label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #0b2a5b;
+  text-align: left;
+}
+
+.vb-field-select .vb-select {
+  margin-bottom: 0;
+}
+
 .vb-field .vb-input {
   margin-bottom: 12px;
 }
@@ -2054,6 +2068,34 @@
   border: 1px solid #bfdbfe;
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.vb-tw-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vb-table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.vb-table-sort-button span {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0;
 }
 
 .vb-judge-criteria-list {

@@ -121,7 +121,8 @@ function ensureSubmissionColumns() {
     "author_school_name TEXT",
     "other_members TEXT",
     "drive_file_id TEXT",
-    "drive_is_public INTEGER DEFAULT 0"
+    "drive_is_public INTEGER DEFAULT 0",
+    "fb_url TEXT"
   ];
 
   db.all("PRAGMA table_info(submissions)", [], (err, rows) => {
@@ -177,6 +178,7 @@ app.use("/api/v1/scoring_criteria", require("./modules/scoring_criteria/routes")
 app.use("/api/v1/judge_scores", require("./modules/judge_scores/routes"));
 app.use("/api/v1/google_drive", require("./modules/google_drive/routes"));
 app.use("/api/v1/voting_snapshots", require("./modules/voting_snapshots/routes"));
+app.use("/api/v1/vote-rankings", require("./modules/vote_rankings/routes"));
 app.use("/api/v1/vote_rankings", require("./modules/vote_rankings/routes"));
 app.use("/api/v1/submission_results", require("./modules/submission_results/routes"));
 app.use("/api/v1/awards", require("./modules/awards/routes"));

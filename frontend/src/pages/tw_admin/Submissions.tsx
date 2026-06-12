@@ -2,12 +2,15 @@ import axios from 'axios'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
+import { useAuth } from '../../context/useAuth'
+import VoteRankModal from '../../components/VoteRankModal'
 
 type SubmissionRow = {
   id: number
   title: string
   competition_table_id: number | null
   video_url: string | null
+  fb_url: string | null
   author_full_name: string | null
   author_province_name: string | null
   author_ward_name: string | null
@@ -67,6 +70,7 @@ function getExportFileName() {
 }
 
 export default function TwAdminSubmissions() {
+  const { user } = useAuth()
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [results, setResults] = useState<ResultRow[]>([])
@@ -78,11 +82,18 @@ export default function TwAdminSubmissions() {
   const [publishLink, setPublishLink] = useState('')
   const [publishError, setPublishError] = useState('')
   const [publishLoading, setPublishLoading] = useState(false)
+  const [voteRankTarget, setVoteRankTarget] = useState<SubmissionRow | null>(null)
+  const [voteRankPosition, setVoteRankPosition] = useState('')
+
+  const [voteRankSaving, setVoteRankSaving] = useState(false)
+  const [voteRankError, setVoteRankError] = useState('')
+  const [sortMode, setSortMode] = useState<'time' | 'score-desc'>('time')
   const [page, setPage] = useState(1)
   const [tableFilter, setTableFilter] = useState('ALL')
   const [provinceFilter, setProvinceFilter] = useState('ALL')
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
+  const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
 
   async function loadData() {
     setLoading(true)
@@ -156,9 +167,20 @@ export default function TwAdminSubmissions() {
     })
   }, [submissions, tableFilter, provinceFilter, query, tableNameById])
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const displayedRows = useMemo(() => {
+    if (sortMode !== 'score-desc') return filteredRows
+
+    return [...filteredRows].sort((left, right) => {
+      const leftScore = toNumber(resultBySubmissionId.get(left.id)?.final_points)
+      const rightScore = toNumber(resultBySubmissionId.get(right.id)?.final_points)
+
+      return rightScore - leftScore || right.id - left.id
+    })
+  }, [filteredRows, resultBySubmissionId, sortMode])
+
+  const totalPages = Math.max(1, Math.ceil(displayedRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pagedRows = displayedRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   useEffect(() => {
     setPage(1)
@@ -200,7 +222,7 @@ export default function TwAdminSubmissions() {
 
   function openPublishDialog(submission: SubmissionRow) {
     setPublishTarget(submission)
-    setPublishLink('')
+    setPublishLink(submission.fb_url || '')
     setPublishError('')
     setPublishLoading(false)
   }
@@ -210,6 +232,31 @@ export default function TwAdminSubmissions() {
     setPublishLink('')
     setPublishError('')
     setPublishLoading(false)
+  }
+  function openVoteRankDialog(submission: SubmissionRow) {
+    const result = resultBySubmissionId.get(submission.id)
+
+    const votePoints = Number(result?.vote_converted_points || 0)
+
+    let rank = ''
+
+    if (votePoints === 50) rank = '1'
+    else if (votePoints === 40) rank = '2'
+    else if (votePoints === 30) rank = '3'
+    else if (votePoints === 20) rank = '4'
+    else if (votePoints === 10) rank = '5'
+
+    setVoteRankTarget(submission)
+    setVoteRankPosition(rank)
+    setVoteRankError('')
+    setVoteRankSaving(false)
+  }
+
+  function closeVoteRankDialog() {
+    setVoteRankTarget(null)
+    setVoteRankPosition('')
+    setVoteRankError('')
+    setVoteRankSaving(false)
   }
 
   async function handleSendPublishNotification(event: FormEvent<HTMLFormElement>) {
@@ -227,16 +274,48 @@ export default function TwAdminSubmissions() {
     }
 
     try {
-      await api.post(`/api/v1/submissions/${publishTarget.id}/notify-facebook`, {
-        facebook_post_url: publishLink.trim(),
-      })
-      setMessage('Email thông báo đã được gửi tới thí sinh.')
+      await api.post(
+        `/api/v1/submissions/${publishTarget.id}/notify-facebook`,
+        {
+          facebook_post_url: publishLink.trim(),
+        },
+      )
+      setMessage('Đã lưu link Facebook và kích hoạt thông báo email cho thí sinh.')
       closePublishDialog()
       await loadData()
     } catch (err: unknown) {
       setPublishError(normalizeError(err, 'Không gửi được thông báo email.'))
     } finally {
       setPublishLoading(false)
+    }
+  }
+
+  async function handleVoteRankSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!voteRankTarget) return
+
+    const rankPosition = Number(voteRankPosition)
+    if (!Number.isInteger(rankPosition) || rankPosition < 0 || rankPosition > 5) {
+      setVoteRankError('Vui lòng chọn thứ hạng từ Top 1 đến Top 5.')
+      return
+    }
+
+    setVoteRankSaving(true)
+    setVoteRankError('')
+    setMessage('')
+
+    try {
+      await api.post('/api/v1/vote-rankings/assign-rank', {
+        submissionId: voteRankTarget.id,
+        rankPosition,
+      })
+      setMessage('Đã chấm điểm bình chọn.')
+      closeVoteRankDialog()
+      await loadData()
+    } catch (err: unknown) {
+      setVoteRankError(normalizeError(err, 'Không chấm điểm bình chọn được.'))
+    } finally {
+      setVoteRankSaving(false)
     }
   }
 
@@ -315,7 +394,7 @@ export default function TwAdminSubmissions() {
             <p className="vb-overline">Danh sách</p>
             <h2>Thông tin bài nộp</h2>
           </div>
-          <p className="vb-section-note">{filteredRows.length} bài nộp khớp điều kiện hiện tại.</p>
+          <p className="vb-section-note">{displayedRows.length} bài nộp khớp điều kiện hiện tại.</p>
         </div>
 
         <div className="vb-tw-toolbar-row">
@@ -385,10 +464,22 @@ export default function TwAdminSubmissions() {
                 <th>Người nộp</th>
                 <th>Tiêu đề</th>
                 <th>Bài thi</th>
+                <th>Link Facebook</th>
                 <th>Điểm bình chọn</th>
                 <th>Điểm bài thi</th>
-                <th>Tổng điểm</th>
-                <th>Xóa</th>
+                <th>
+                  <button
+                    type="button"
+                    className="vb-table-sort-button"
+                    onClick={() =>
+                      setSortMode((current) => (current === 'score-desc' ? 'time' : 'score-desc'))
+                    }
+                  >
+                    Tổng điểm
+                    <span>{sortMode === 'score-desc' ? '↓' : '↕'}</span>
+                  </button>
+                </th>
+                <th>Hành động</th>
               </tr>
             </thead>
             <tbody>
@@ -408,26 +499,46 @@ export default function TwAdminSubmissions() {
                         'N/A'
                       )}
                     </td>
+                    <td>
+                      {row.fb_url ? (
+                        <a className="vb-tw-btn-link" href={row.fb_url} target="_blank" rel="noreferrer">
+                          Xem bài đăng
+                        </a>
+                      ) : (
+                        <span className="vb-status-pill is-inactive">Chưa đăng</span>
+                      )}
+                    </td>
                     <td>{toNumber(result?.vote_converted_points).toFixed(2)}</td>
                     <td>{toNumber(result?.judge_total_points).toFixed(2)}</td>
                     <td>
                       <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="vb-tw-btn-danger"
-                        onClick={() => void handleDeleteSubmission(row.id)}
-                      >
-                        {deletingId === row.id ? 'Đang xóa...' : 'Xóa'}
-                      </button>
-                      <button
-                        type="button"
-                        className="vb-tw-btn-primary"
-                        onClick={() => openPublishDialog(row)}
-                      >
-                        Thông báo
-                      </button>
+                      <div className="vb-tw-row-actions">
+                        {canAssignVoteRank ? (
+                          <button
+                            type="button"
+                            className="vb-tw-btn-muted"
+                            onClick={() => openVoteRankDialog(row)}
+                          >
+                            Chấm điểm
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="vb-tw-btn-primary"
+                          onClick={() => openPublishDialog(row)}
+                        >
+                          Thông báo
+                        </button>
+                        <button
+                          type="button"
+                          className="vb-tw-btn-danger"
+                          onClick={() => void handleDeleteSubmission(row.id)}
+                        >
+                          {deletingId === row.id ? 'Đang xóa...' : 'Xóa'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -438,11 +549,19 @@ export default function TwAdminSubmissions() {
 
         {publishTarget ? (
           <div className="vb-modal-backdrop" role="presentation" onClick={closePublishDialog}>
-            <section className="vb-modal" role="dialog" aria-modal="true" aria-labelledby="publish-notify-title" onClick={(event) => event.stopPropagation()}>
+            <section
+              className="vb-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="publish-notify-title"
+              onClick={(event) => event.stopPropagation()}
+            >
               <div className="vb-modal-head">
                 <p className="vb-overline">Gửi thông báo</p>
                 <h2 id="publish-notify-title">Thông báo bài đăng Facebook</h2>
-                <button type="button" className="vb-modal-close" onClick={closePublishDialog}>Hủy</button>
+                <button type="button" className="vb-modal-close" onClick={closePublishDialog}>
+                  Hủy
+                </button>
               </div>
               <form className="vb-modal-body vb-modal-form" onSubmit={handleSendPublishNotification}>
                 <p className="vb-modal-description">
@@ -472,6 +591,17 @@ export default function TwAdminSubmissions() {
             </section>
           </div>
         ) : null}
+
+        <VoteRankModal
+          open={Boolean(voteRankTarget)}
+          submission={voteRankTarget}
+          rankPosition={voteRankPosition}
+          onRankPositionChange={setVoteRankPosition}
+          onClose={closeVoteRankDialog}
+          onSubmit={handleVoteRankSubmit}
+          saving={voteRankSaving}
+          error={voteRankError}
+        />
 
         <div className="vb-tw-pagination">
           <button

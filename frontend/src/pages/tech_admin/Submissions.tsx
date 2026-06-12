@@ -1,13 +1,16 @@
 import axios from 'axios'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
+import { useAuth } from '../../context/useAuth'
+import VoteRankModal from '../../components/VoteRankModal'
 
 type SubmissionRow = {
   id: number
   title: string
   competition_table_id: number | null
   video_url: string | null
+  fb_url: string | null
   author_full_name: string | null
   author_province_name: string | null
   author_ward_name: string | null
@@ -67,6 +70,7 @@ function getExportFileName() {
 }
 
 export default function TechAdminSubmissions() {
+  const { user } = useAuth()
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [results, setResults] = useState<ResultRow[]>([])
@@ -79,6 +83,12 @@ export default function TechAdminSubmissions() {
   const [provinceFilter, setProvinceFilter] = useState('ALL')
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [sortMode, setSortMode] = useState<'time' | 'score-desc'>('time')
+  const [voteRankTarget, setVoteRankTarget] = useState<SubmissionRow | null>(null)
+  const [voteRankPosition, setVoteRankPosition] = useState('')
+  const [voteRankSaving, setVoteRankSaving] = useState(false)
+  const [voteRankError, setVoteRankError] = useState('')
+  const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
 
   async function loadData() {
     setLoading(true)
@@ -152,9 +162,20 @@ export default function TechAdminSubmissions() {
     })
   }, [submissions, tableFilter, provinceFilter, query, tableNameById])
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const displayedRows = useMemo(() => {
+    if (sortMode !== 'score-desc') return filteredRows
+
+    return [...filteredRows].sort((left, right) => {
+      const leftScore = toNumber(resultBySubmissionId.get(left.id)?.final_points)
+      const rightScore = toNumber(resultBySubmissionId.get(right.id)?.final_points)
+
+      return rightScore - leftScore || right.id - left.id
+    })
+  }, [filteredRows, resultBySubmissionId, sortMode])
+
+  const totalPages = Math.max(1, Math.ceil(displayedRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pagedRows = displayedRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   useEffect(() => {
     setPage(1)
@@ -191,6 +212,61 @@ export default function TechAdminSubmissions() {
       setError(normalizeError(err, 'Không xóa được bài nộp.'))
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  function openVoteRankDialog(submission: SubmissionRow) {
+    const result = resultBySubmissionId.get(submission.id)
+
+    const votePoints = Number(result?.vote_converted_points || 0)
+
+    let rank = ''
+
+    if (votePoints === 50) rank = '1'
+    else if (votePoints === 40) rank = '2'
+    else if (votePoints === 30) rank = '3'
+    else if (votePoints === 20) rank = '4'
+    else if (votePoints === 10) rank = '5'
+
+    setVoteRankTarget(submission)
+    setVoteRankPosition(rank)
+    setVoteRankError('')
+    setVoteRankSaving(false)
+  }
+
+  function closeVoteRankDialog() {
+    setVoteRankTarget(null)
+    setVoteRankPosition('')
+    setVoteRankError('')
+    setVoteRankSaving(false)
+  }
+
+  async function handleVoteRankSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!voteRankTarget) return
+
+    const rankPosition = Number(voteRankPosition)
+    if (!Number.isInteger(rankPosition) || rankPosition < 0 || rankPosition > 5) {
+      setVoteRankError('Vui lòng chọn thứ hạng từ Top 1 đến Top 5.')
+      return
+    }
+
+    setVoteRankSaving(true)
+    setVoteRankError('')
+    setMessage('')
+
+    try {
+      await api.post('/api/v1/vote-rankings/assign-rank', {
+        submissionId: voteRankTarget.id,
+        rankPosition,
+      })
+      setMessage('Đã chấm điểm bình chọn.')
+      closeVoteRankDialog()
+      await loadData()
+    } catch (err: unknown) {
+      setVoteRankError(normalizeError(err, 'Không chấm điểm bình chọn được.'))
+    } finally {
+      setVoteRankSaving(false)
     }
   }
 
@@ -269,7 +345,7 @@ export default function TechAdminSubmissions() {
             <p className="vb-overline">Danh sách</p>
             <h2>Thông tin bài nộp</h2>
           </div>
-          <p className="vb-section-note">{filteredRows.length} bài nộp khớp điều kiện hiện tại.</p>
+          <p className="vb-section-note">{displayedRows.length} bài nộp khớp điều kiện hiện tại.</p>
         </div>
 
         <div className="vb-tw-toolbar-row">
@@ -339,10 +415,22 @@ export default function TechAdminSubmissions() {
                 <th>Người nộp</th>
                 <th>Tiêu đề</th>
                 <th>Bài thi</th>
+                <th>Link Facebook</th>
                 <th>Điểm bình chọn</th>
                 <th>Điểm bài thi</th>
-                <th>Tổng điểm</th>
-                <th>Xóa</th>
+                <th>
+                  <button
+                    type="button"
+                    className="vb-table-sort-button"
+                    onClick={() =>
+                      setSortMode((current) => (current === 'score-desc' ? 'time' : 'score-desc'))
+                    }
+                  >
+                    Tổng điểm
+                    <span>{sortMode === 'score-desc' ? '↓' : '↕'}</span>
+                  </button>
+                </th>
+                <th>Hành động</th>
               </tr>
             </thead>
             <tbody>
@@ -362,19 +450,39 @@ export default function TechAdminSubmissions() {
                         'N/A'
                       )}
                     </td>
+                    <td>
+                      {row.fb_url ? (
+                        <a className="vb-tw-btn-link" href={row.fb_url} target="_blank" rel="noreferrer">
+                          Xem bài đăng
+                        </a>
+                      ) : (
+                        <span className="vb-status-pill is-inactive">Chưa đăng</span>
+                      )}
+                    </td>
                     <td>{toNumber(result?.vote_converted_points).toFixed(2)}</td>
                     <td>{toNumber(result?.judge_total_points).toFixed(2)}</td>
                     <td>
                       <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="vb-tw-btn-danger"
-                        onClick={() => void handleDeleteSubmission(row.id)}
-                      >
-                        {deletingId === row.id ? 'Đang xóa...' : 'Xóa'}
-                      </button>
+                      <div className="vb-tw-row-actions">
+                        {canAssignVoteRank ? (
+                          <button
+                            type="button"
+                            className="vb-tw-btn-muted"
+                            onClick={() => openVoteRankDialog(row)}
+                          >
+                            Chấm điểm
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="vb-tw-btn-danger"
+                          onClick={() => void handleDeleteSubmission(row.id)}
+                        >
+                          {deletingId === row.id ? 'Đang xóa...' : 'Xóa'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -402,6 +510,17 @@ export default function TechAdminSubmissions() {
             Trang sau
           </button>
         </div>
+
+        <VoteRankModal
+          open={Boolean(voteRankTarget)}
+          submission={voteRankTarget}
+          rankPosition={voteRankPosition}
+          onRankPositionChange={setVoteRankPosition}
+          onClose={closeVoteRankDialog}
+          onSubmit={handleVoteRankSubmit}
+          saving={voteRankSaving}
+          error={voteRankError}
+        />
       </section>
     </main>
   )
