@@ -56,77 +56,6 @@ function formatCount(value: number) {
   return new Intl.NumberFormat('vi-VN').format(value)
 }
 
-function getDayKey(date = new Date()) {
-  return date.toLocaleDateString('en-CA')
-}
-
-function hashString(input: string) {
-  let hash = 2166136261
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
-function getDailyIncrement(dayKey: string, statKey: string) {
-  const seed = hashString(`${dayKey}:${statKey}`)
-  return 10 + (seed % 6) // 10 -> 15
-}
-
-function getStorageKey(statKey: string) {
-  return `landing_display_${statKey}`
-}
-
-function readStoredDisplay(statKey: string) {
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(statKey))
-    if (!raw) return null
-
-    const parsed = JSON.parse(raw) as { dayKey?: string; value?: number }
-    if (!parsed.dayKey || typeof parsed.value !== 'number') return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-function saveStoredDisplay(statKey: string, dayKey: string, value: number) {
-  try {
-    window.localStorage.setItem(getStorageKey(statKey), JSON.stringify({ dayKey, value }))
-  } catch {
-    // Ignore storage errors and keep the UI functional.
-  }
-}
-
-function useInflatedCount(rawValue: number, statKey: string, enabled: boolean) {
-  const [displayValue, setDisplayValue] = useState(rawValue)
-
-  useEffect(() => {
-    if (!enabled) {
-      setDisplayValue(rawValue)
-      return
-    }
-
-    const dayKey = getDayKey()
-    const cached = readStoredDisplay(statKey)
-
-    if (cached?.dayKey === dayKey && typeof cached.value === 'number') {
-      setDisplayValue(cached.value)
-      return
-    }
-
-    const increment = getDailyIncrement(dayKey, statKey)
-    const computed = rawValue + increment
-    const previousValue = typeof cached?.value === 'number' ? cached.value : 0
-    const nextValue = Math.max(computed, previousValue)
-
-    saveStoredDisplay(statKey, dayKey, nextValue)
-    setDisplayValue(nextValue)
-  }, [enabled, rawValue, statKey])
-
-  return displayValue
-}
 
 export default function Landing() {
   const { user, loading } = useAuth()
@@ -178,12 +107,9 @@ export default function Landing() {
     }
   }, [])
 
-  const inflatedTotal = useInflatedCount(stats.total_submissions, 'total_submissions', !statsLoading && !statsError)
-  const inflatedProvinceCount = useInflatedCount(
-    stats.top_province_submissions,
-    'top_province_submissions',
-    !statsLoading && !statsError,
-  )
+  const inflatedTotal = stats.total_submissions
+
+  const inflatedProvinceCount = stats.top_province_submissions
   const animatedTotal = useCountUp(inflatedTotal, !statsLoading && !statsError)
   const animatedProvinceCount = useCountUp(inflatedProvinceCount, !statsLoading && !statsError)
   const provinceName = stats.top_province_name || 'Chưa có dữ liệu'
