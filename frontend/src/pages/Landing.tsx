@@ -69,10 +69,9 @@ function hashString(input: string) {
   return hash >>> 0
 }
 
-function getDailyMultiplier(dayKey: string, statKey: string) {
+function getDailyIncrement(dayKey: string, statKey: string) {
   const seed = hashString(`${dayKey}:${statKey}`)
-  const ratio = seed / 0xffffffff
-  return 1.2 + ratio * 0.4
+  return 10 + (seed % 6) // 10 -> 15
 }
 
 function getStorageKey(statKey: string) {
@@ -117,8 +116,8 @@ function useInflatedCount(rawValue: number, statKey: string, enabled: boolean) {
       return
     }
 
-    const multiplier = getDailyMultiplier(dayKey, statKey)
-    const computed = Math.round(rawValue * multiplier)
+    const increment = getDailyIncrement(dayKey, statKey)
+    const computed = rawValue + increment
     const previousValue = typeof cached?.value === 'number' ? cached.value : 0
     const nextValue = Math.max(computed, previousValue)
 
