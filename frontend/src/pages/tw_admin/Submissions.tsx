@@ -99,13 +99,13 @@ export default function TwAdminSubmissions() {
   const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
 
   async function handleToggleFailed(id: number) {
-  try {
-    await api.patch(`/api/v1/submissions/${id}/toggle-failed`)
-    await loadData()
-  } catch (err: unknown) {
-    setError(normalizeError(err, 'Không cập nhật được trạng thái bài thi.'))
+    try {
+      await api.patch(`/api/v1/submissions/${id}/toggle-failed`)
+      await loadData()
+    } catch (err: unknown) {
+      setError(normalizeError(err, 'Không cập nhật được trạng thái bài thi.'))
+    }
   }
-}
 
   async function loadData() {
     setLoading(true)
@@ -495,6 +495,7 @@ export default function TwAdminSubmissions() {
                     <span>{sortMode === 'score-desc' ? '↓' : '↕'}</span>
                   </button>
                 </th>
+                <th>Đạt yêu cầu</th>
                 <th>Hành động</th>
               </tr>
             </thead>
@@ -530,6 +531,20 @@ export default function TwAdminSubmissions() {
                       <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
                     </td>
                     <td>
+                      <div className="vb-requirement-toggle">
+
+                        <label className="vb-toggle">
+                          <input
+                            type="checkbox"
+                            checked={row.is_failed === 0}
+                            onChange={() => void handleToggleFailed(row.id)}
+                          />
+
+                          <span className="vb-toggle-slider" />
+                        </label>
+                      </div>
+                    </td>
+                    <td>
                       <div className="vb-tw-row-actions">
                         {canAssignVoteRank ? (
                           <button
@@ -546,13 +561,6 @@ export default function TwAdminSubmissions() {
                           onClick={() => openPublishDialog(row)}
                         >
                           Thông báo
-                        </button>
-                        <button
-                          type="button"
-                          className={row.is_failed ? 'vb-tw-btn-primary' : 'vb-tw-btn-danger'}
-                          onClick={() => void handleToggleFailed(row.id)}
-                        >
-                          {row.is_failed ? 'Đạt' : 'Không đạt'}
                         </button>
                         <button
                           type="button"
