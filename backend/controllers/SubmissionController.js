@@ -706,7 +706,6 @@ class SubmissionController {
     static async getSubmissions(req, res) {
         try {
             const rows = await dbAll("SELECT * FROM submissions ORDER BY id DESC");
-            console.log(rows);
             return res.status(200).json({
                 success: true,
                 message: "Lấy danh sách bài thi thành công",
