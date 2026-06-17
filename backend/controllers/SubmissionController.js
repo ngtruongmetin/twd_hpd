@@ -706,6 +706,7 @@ class SubmissionController {
     static async getSubmissions(req, res) {
         try {
             const rows = await dbAll("SELECT * FROM submissions ORDER BY id DESC");
+            console.log(rows);
             return res.status(200).json({
                 success: true,
                 message: "Lấy danh sách bài thi thành công",
@@ -1070,7 +1071,7 @@ class SubmissionController {
             if (updateResult.changes === 0) {
                 return res.status(404).json({
                     success: false,
-                    message: "Kh??ng t??m th???y b??i thi",
+                    message: "Không tìm thấy bài thi",
                 });
             }
 
@@ -1083,7 +1084,7 @@ class SubmissionController {
 
             return res.status(200).json({
                 success: true,
-                message: "???? l??u link Facebook v?? k?ch ho?t th?ng b?o email cho th?? sinh",
+                message: "dữ liệu link Facebook vừa kích hoạt thông báo email cho thí sinh",
             });
         } catch (error) {
             return res.status(500).json({

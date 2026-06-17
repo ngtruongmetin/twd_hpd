@@ -119,6 +119,9 @@ export default function TwAdminSubmissions() {
       setSubmissions((submissionRes.data?.data ?? []) as SubmissionRow[])
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
       setResults((resultRes.data?.data ?? []) as ResultRow[])
+      console.log('Submissions:', submissionRes.data?.data);
+      console.log('Tables:', tableRes.data?.data);
+      console.log('Results:', resultRes.data?.data);
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không tải được dữ liệu bài nộp.'))
     } finally {
@@ -129,6 +132,7 @@ export default function TwAdminSubmissions() {
   useEffect(() => {
     void loadData()
   }, [])
+
 
   const resultBySubmissionId = useMemo(() => {
     const map = new Map<number, ResultRow>()
