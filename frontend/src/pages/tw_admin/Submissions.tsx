@@ -14,6 +14,7 @@ type SubmissionRow = {
   author_full_name: string | null
   author_province_name: string | null
   author_ward_name: string | null
+  is_failed: number
 }
 
 type CompetitionTableRow = {
@@ -69,6 +70,8 @@ function getExportFileName() {
   return 'submissions.xlsx'
 }
 
+
+
 export default function TwAdminSubmissions() {
   const { user } = useAuth()
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
@@ -94,6 +97,15 @@ export default function TwAdminSubmissions() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
   const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
+
+  async function handleToggleFailed(id: number) {
+  try {
+    await api.patch(`/api/v1/submissions/${id}/toggle-failed`)
+    await loadData()
+  } catch (err: unknown) {
+    setError(normalizeError(err, 'Không cập nhật được trạng thái bài thi.'))
+  }
+}
 
   async function loadData() {
     setLoading(true)
@@ -530,6 +542,13 @@ export default function TwAdminSubmissions() {
                           onClick={() => openPublishDialog(row)}
                         >
                           Thông báo
+                        </button>
+                        <button
+                          type="button"
+                          className={row.is_failed ? 'vb-tw-btn-primary' : 'vb-tw-btn-danger'}
+                          onClick={() => void handleToggleFailed(row.id)}
+                        >
+                          {row.is_failed ? 'Đạt' : 'Không đạt'}
                         </button>
                         <button
                           type="button"

@@ -1,6 +1,11 @@
 const router = require("express").Router();
 const AuthController = require("../../controllers/AuthController");
 
+router.use((req, res, next) => {
+    console.log(req.body);
+    next();
+})
+
 router.get("/google", AuthController.GoogleStart);
 router.get("/google/callback", AuthController.GoogleCallback);
 router.post("/login", AuthController.Login);

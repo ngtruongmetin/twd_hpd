@@ -166,6 +166,7 @@ class AuthController {
         try {
             const row = await loadUserByUsername(username, true);
 
+
             if (!row) {
                 return res.status(404).json({
                     success: false,

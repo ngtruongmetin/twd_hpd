@@ -11,4 +11,10 @@ router.post("/:id/notify-facebook", AuthMiddleware.IsAdmin, SubmissionController
 router.put("/:id", SubmissionController.updateSubmission);
 router.delete("/:id", SubmissionController.deleteSubmission);
 
+router.patch(
+    "/:id/toggle-failed",
+    AuthMiddleware.IsAdmin,
+    SubmissionController.toggleFailed
+);
+
 module.exports = router;

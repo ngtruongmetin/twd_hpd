@@ -149,6 +149,7 @@ Table submissions {
   fb_url text
   status submission_status [not null, default: 'SUBMITTED']
   rejection_reason text
+  is_failed boolean [default: false]
 
   submitted_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]

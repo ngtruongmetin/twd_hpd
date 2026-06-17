@@ -663,6 +663,46 @@ async function validateGoogleDriveAccess(url) {
 
 
 class SubmissionController {
+    static async toggleFailed(req, res) {
+    try {
+        const id = Number(req.params.id);
+
+        const submission = await dbGet(
+            "SELECT id, is_failed FROM submissions WHERE id = ?",
+            [id]
+        );
+
+        if (!submission) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy bài thi",
+            });
+        }
+
+        const nextValue = submission.is_failed ? 0 : 1;
+
+        await dbRun(
+            `UPDATE submissions
+             SET is_failed = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [nextValue, id]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Cập nhật trạng thái thành công",
+            data: {
+                is_failed: nextValue,
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: getSubmissionErrorMessage(error),
+        });
+    }
+}
     static async getSubmissions(req, res) {
         try {
             const rows = await dbAll("SELECT * FROM submissions ORDER BY id DESC");
