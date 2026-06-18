@@ -15,6 +15,7 @@ type SubmissionRow = {
   author_province_name: string | null
   author_ward_name: string | null
   is_failed: number
+  failed_reason: string | null
 }
 
 type CompetitionTableRow = {
@@ -87,6 +88,10 @@ export default function TwAdminSubmissions() {
   const [publishLoading, setPublishLoading] = useState(false)
   const [voteRankTarget, setVoteRankTarget] = useState<SubmissionRow | null>(null)
   const [voteRankPosition, setVoteRankPosition] = useState('')
+  const [failureTarget, setFailureTarget] = useState<SubmissionRow | null>(null)
+  const [failureReason, setFailureReason] = useState('')
+  const [failureError, setFailureError] = useState('')
+  const [failureSaving, setFailureSaving] = useState(false)
 
   const [voteRankSaving, setVoteRankSaving] = useState(false)
   const [voteRankError, setVoteRankError] = useState('')
@@ -98,12 +103,73 @@ export default function TwAdminSubmissions() {
   const [exporting, setExporting] = useState(false)
   const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
 
-  async function handleToggleFailed(id: number) {
+  async function updateFailureStatus(id: number, isFailed: boolean, failedReason?: string) {
+    const payload: { is_failed: boolean; failed_reason?: string } = {
+      is_failed: isFailed,
+    }
+
+    if (isFailed) {
+      payload.failed_reason = failedReason || ''
+    }
+
+    await api.patch(`/api/v1/submissions/${id}/failure-status`, payload)
+  }
+
+  async function handleFailureToggle(row: SubmissionRow) {
     try {
-      await api.patch(`/api/v1/submissions/${id}/toggle-failed`)
+      if (row.is_failed === 0) {
+        setFailureTarget(row)
+        setFailureReason(row.failed_reason || '')
+        setFailureError('')
+        setFailureSaving(false)
+        return
+      }
+
+      if (!window.confirm('Đánh dấu bài thi đạt yêu cầu?')) {
+        return
+      }
+
+      setError('')
+      setMessage('')
+      await updateFailureStatus(row.id, false)
       await loadData()
+      setMessage('Đã cập nhật trạng thái bài thi.')
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không cập nhật được trạng thái bài thi.'))
+    }
+  }
+
+  function closeFailureDialog() {
+    setFailureTarget(null)
+    setFailureReason('')
+    setFailureError('')
+    setFailureSaving(false)
+  }
+
+  async function handleFailureSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!failureTarget) return
+
+    const reason = failureReason.trim()
+    if (!reason) {
+      setFailureError('Vui lòng nhập lý do không đạt')
+      return
+    }
+
+    setFailureSaving(true)
+    setFailureError('')
+    setError('')
+    setMessage('')
+
+    try {
+      await updateFailureStatus(failureTarget.id, true, reason)
+      closeFailureDialog()
+      await loadData()
+      setMessage('Đã cập nhật trạng thái bài thi.')
+    } catch (err: unknown) {
+      setFailureError(normalizeError(err, 'Không cập nhật được trạng thái bài thi.'))
+    } finally {
+      setFailureSaving(false)
     }
   }
 
@@ -119,9 +185,6 @@ export default function TwAdminSubmissions() {
       setSubmissions((submissionRes.data?.data ?? []) as SubmissionRow[])
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
       setResults((resultRes.data?.data ?? []) as ResultRow[])
-      console.log('Submissions:', submissionRes.data?.data);
-      console.log('Tables:', tableRes.data?.data);
-      console.log('Results:', resultRes.data?.data);
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không tải được dữ liệu bài nộp.'))
     } finally {
@@ -532,14 +595,12 @@ export default function TwAdminSubmissions() {
                     </td>
                     <td>
                       <div className="vb-requirement-toggle">
-
                         <label className="vb-toggle">
                           <input
                             type="checkbox"
                             checked={row.is_failed === 0}
-                            onChange={() => void handleToggleFailed(row.id)}
+                            onChange={() => void handleFailureToggle(row)}
                           />
-
                           <span className="vb-toggle-slider" />
                         </label>
                       </div>
@@ -633,6 +694,58 @@ export default function TwAdminSubmissions() {
           saving={voteRankSaving}
           error={voteRankError}
         />
+
+        {failureTarget ? (
+          <div className="vb-modal-backdrop" role="presentation" onClick={closeFailureDialog}>
+            <section
+              className="vb-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="failure-status-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="vb-modal-head">
+                <p className="vb-overline">Đánh giá bài thi</p>
+                <h2 id="failure-status-title">Đánh dấu bài thi không đạt</h2>
+                <button type="button" className="vb-modal-close" onClick={closeFailureDialog}>
+                  Hủy
+                </button>
+              </div>
+              <form className="vb-modal-body vb-modal-form" onSubmit={handleFailureSubmit}>
+                <p className="vb-modal-description">
+                  Nhập lý do không đạt cho <strong>{failureTarget.title || 'bài thi này'}</strong>.
+                </p>
+                <div className="vb-field">
+                  <textarea
+                    id="failure_reason"
+                    className="vb-input"
+                    placeholder=" "
+                    value={failureReason}
+                    onChange={(e) => setFailureReason(e.target.value)}
+                    rows={4}
+                  />
+                  <label className="vb-float-label" htmlFor="failure_reason">
+                    Lý do không đạt
+                  </label>
+                </div>
+                {failureError ? <p className="vb-form-error">{failureError}</p> : null}
+                <div className="vb-modal-actions">
+                  <button
+                    type="button"
+                    className="vb-tw-btn-muted"
+                    onClick={closeFailureDialog}
+                    disabled={failureSaving}
+                  >
+                    Hủy
+                  </button>
+                  <button type="submit" className="vb-tw-btn-primary" disabled={failureSaving}>
+                    {failureSaving ? 'Đang lưu...' : 'Lưu'}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        ) : null}
 
         <div className="vb-tw-pagination">
           <button

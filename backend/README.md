@@ -96,6 +96,25 @@ Server chạy trên port `3000`
 - Mô tả: Xóa submission
 - Yêu cầu: Đã đăng nhập
 
+### /api/v1/submissions/:id/failure-status
+- Phương thức: PATCH
+- Mô tả: Cập nhật trạng thái đạt/không đạt cho submission
+- Yêu cầu: Đã đăng nhập + Quyền Admin
+- Body khi đánh dấu không đạt:
+  ```json
+  {
+    "is_failed": true,
+    "failed_reason": "Video không đúng chủ đề"
+  }
+  ```
+- Body khi đánh dấu đạt:
+  ```json
+  {
+    "is_failed": false
+  }
+  ```
+- Response: bản ghi submission đã được cập nhật
+
 
 ## Mail APIs
 
@@ -244,7 +263,6 @@ Ví dụ `http://localhost:3000/api/v1/password/generate?length=20`
       "drive_is_public": 0,
       "fb_url": null,
       "status": "SUBMITTED",
-      "rejection_reason": null,
       "submitted_at": "2026-06-03 07:50:59",
       "updated_at": "2026-06-03 07:50:59"
     }

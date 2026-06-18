@@ -12,9 +12,9 @@ router.put("/:id", SubmissionController.updateSubmission);
 router.delete("/:id", SubmissionController.deleteSubmission);
 
 router.patch(
-    "/:id/toggle-failed",
+    "/:id/failure-status",
     AuthMiddleware.IsAdmin,
-    SubmissionController.toggleFailed
+    SubmissionController.updateFailureStatus
 );
 
 module.exports = router;

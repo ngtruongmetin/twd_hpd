@@ -149,8 +149,9 @@ class ExportController {
             drive_file_id,
             drive_is_public,
             fb_url,
+            is_failed,
+            failed_reason,
             status,
-            rejection_reason,
             submitted_at,
             updated_at
         FROM submissions${where}`;
@@ -184,8 +185,9 @@ class ExportController {
                         { header: "Drive File ID", key: "drive_file_id", width: 30 },
                         { header: "Drive Public", key: "drive_is_public", width: 12 },
                         { header: "FB URL", key: "fb_url", width: 35 },
+                        { header: "Không đạt", key: "is_failed", width: 12 },
+                        { header: "Lý do không đạt", key: "failed_reason", width: 35 },
                         { header: "Trạng thái", key: "status", width: 15 },
-                        { header: "Lý do từ chối", key: "rejection_reason", width: 30 },
                         { header: "Ngày nộp", key: "submitted_at", width: 20 },
                         { header: "Cập nhật", key: "updated_at", width: 20 },
                     ],

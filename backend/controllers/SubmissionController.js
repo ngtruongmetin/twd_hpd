@@ -663,46 +663,68 @@ async function validateGoogleDriveAccess(url) {
 
 
 class SubmissionController {
-    static async toggleFailed(req, res) {
-    try {
-        const id = Number(req.params.id);
+    static async updateFailureStatus(req, res) {
+        try {
+            const id = Number(req.params.id);
+            const isFailed = req.body?.is_failed === true;
+            const failedReason = typeof req.body?.failed_reason === "string" ? req.body.failed_reason.trim() : "";
 
-        const submission = await dbGet(
-            "SELECT id, is_failed FROM submissions WHERE id = ?",
-            [id]
-        );
+            const submission = await dbGet(
+                "SELECT * FROM submissions WHERE id = ?",
+                [id]
+            );
 
-        if (!submission) {
-            return res.status(404).json({
+            if (!submission) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy bài thi",
+                });
+            }
+
+            if (isFailed && !failedReason) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Vui lòng nhập lý do không đạt",
+                });
+            }
+
+            if (isFailed) {
+                await dbRun(
+                    `UPDATE submissions
+                     SET is_failed = 1,
+                         failed_reason = ?,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = ?`,
+                    [failedReason, id]
+                );
+            } else {
+                await dbRun(
+                    `UPDATE submissions
+                     SET is_failed = 0,
+                         failed_reason = NULL,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE id = ?`,
+                    [id]
+                );
+            }
+
+            const updatedSubmission = await dbGet(
+                "SELECT * FROM submissions WHERE id = ?",
+                [id]
+            );
+
+            return res.status(200).json({
+                success: true,
+                message: "Cập nhật trạng thái thành công",
+                data: updatedSubmission,
+            });
+        } catch (error) {
+            return res.status(500).json({
                 success: false,
-                message: "Không tìm thấy bài thi",
+                message: getSubmissionErrorMessage(error),
             });
         }
-
-        const nextValue = submission.is_failed ? 0 : 1;
-
-        await dbRun(
-            `UPDATE submissions
-             SET is_failed = ?,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?`,
-            [nextValue, id]
-        );
-
-        return res.status(200).json({
-            success: true,
-            message: "Cập nhật trạng thái thành công",
-            data: {
-                is_failed: nextValue,
-            },
-        });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: getSubmissionErrorMessage(error),
-        });
     }
-}
     static async getSubmissions(req, res) {
         try {
             const rows = await dbAll("SELECT * FROM submissions ORDER BY id DESC");
