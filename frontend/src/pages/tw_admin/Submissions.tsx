@@ -8,6 +8,7 @@ import VoteRankModal from '../../components/VoteRankModal'
 type SubmissionRow = {
   id: number
   title: string
+  submitted_at: string | null
   competition_table_id: number | null
   video_url: string | null
   fb_url: string | null
@@ -30,7 +31,7 @@ type ResultRow = {
   final_points: number | string
 }
 
-type SortKey = 'time' | 'table' | 'author' | 'title' | 'facebook' | 'vote' | 'judge' | 'total' | 'status'
+type SortKey = 'time' | 'table' | 'author' | 'title' | 'submittedAt' | 'facebook' | 'vote' | 'judge' | 'total' | 'status'
 type SortDirection = 'desc' | 'asc' | 'time'
 
 const PAGE_SIZE = 10
@@ -91,11 +92,51 @@ function getExportFileName() {
   return 'submissions.xlsx'
 }
 
+function parseUtcTimestamp(value: string) {
+  const isoLike = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/,
+  )
+
+  if (isoLike) {
+    const [, year, month, day, hour, minute, second = '0'] = isoLike
+    return Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    )
+  }
+
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatSubmittedAt(value: string | null | undefined) {
+  if (!value) return 'N/A'
+
+  const timestamp = parseUtcTimestamp(value)
+  if (!timestamp) return 'N/A'
+
+  const pad = (input: number) => String(input).padStart(2, '0')
+  const utc7Timestamp = timestamp + 7 * 60 * 60 * 1000
+  const utc7Date = new Date(utc7Timestamp)
+
+  return `${pad(utc7Date.getUTCHours())}:${pad(utc7Date.getUTCMinutes())} ${utc7Date.getUTCDate()}/${utc7Date.getUTCMonth() + 1}`
+}
+
 function compareText(leftValue: string, rightValue: string, direction: Exclude<SortDirection, 'time'>) {
   const left = leftValue.trim()
   const right = rightValue.trim()
   const result = left.localeCompare(right, 'vi', { sensitivity: 'base' })
   return direction === 'desc' ? -result : result
+}
+
+function compareDate(leftValue: string | null | undefined, rightValue: string | null | undefined, direction: Exclude<SortDirection, 'time'>) {
+  const leftTime = leftValue ? parseUtcTimestamp(leftValue) : 0
+  const rightTime = rightValue ? parseUtcTimestamp(rightValue) : 0
+  return direction === 'desc' ? rightTime - leftTime : leftTime - rightTime
 }
 
 function compareNumber(leftValue: number, rightValue: number, direction: Exclude<SortDirection, 'time'>) {
@@ -116,7 +157,7 @@ function compareLink(leftValue: string, rightValue: string, direction: Exclude<S
 }
 
 function getDefaultSortDirection(key: Exclude<SortKey, 'time'>): Exclude<SortDirection, 'time'> {
-  if (key === 'table' || key === 'author' || key === 'title' || key === 'status') return 'asc'
+  if (key === 'table' || key === 'author' || key === 'title' || key === 'submittedAt' || key === 'status') return 'asc'
   return 'desc'
 }
 
@@ -360,6 +401,9 @@ export default function TwAdminSubmissions() {
           break
         case 'title':
           result = compareText(leftTitle, rightTitle, direction)
+          break
+        case 'submittedAt':
+          result = compareDate(left.submitted_at, right.submitted_at, direction)
           break
         case 'facebook':
           result = compareLink(leftFb, rightFb, direction)
@@ -814,6 +858,12 @@ export default function TwAdminSubmissions() {
                     <span>{getSortIcon('status')}</span>
                   </button>
                 </th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('submittedAt')}>
+                    Thời gian nộp
+                    <span>{getSortIcon('submittedAt')}</span>
+                  </button>
+                </th>
                 <th>Hành động</th>
               </tr>
             </thead>
@@ -860,6 +910,7 @@ export default function TwAdminSubmissions() {
                         </label>
                       </div>
                     </td>
+                    <td>{formatSubmittedAt(row.submitted_at)}</td>
                     <td>
                       <div className="vb-tw-row-actions">
                         {canAssignVoteRank ? (

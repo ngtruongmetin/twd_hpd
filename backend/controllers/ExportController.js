@@ -2,6 +2,39 @@ const DataModel = require('../models/DataModel');
 const db = require("../utils/db");
 
 class ExportController {
+    static parseUtcTimestamp(value) {
+        if (!value) return 0;
+
+        const raw = String(value);
+        const isoLike = raw.match(
+            /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/
+        );
+
+        if (isoLike) {
+            const [, year, month, day, hour, minute, second = "0"] = isoLike;
+            return Date.UTC(
+                Number(year),
+                Number(month) - 1,
+                Number(day),
+                Number(hour),
+                Number(minute),
+                Number(second)
+            );
+        }
+
+        const parsed = Date.parse(raw);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    static formatUtc7DateTime(value) {
+        const timestamp = ExportController.parseUtcTimestamp(value);
+        if (!timestamp) return value || "";
+
+        const utc7 = new Date(timestamp + 7 * 60 * 60 * 1000);
+        const pad = (input) => String(input).padStart(2, "0");
+        return `${pad(utc7.getUTCHours())}:${pad(utc7.getUTCMinutes())} ${pad(utc7.getUTCDate())}/${utc7.getUTCMonth() + 1}`;
+    }
+
     static buildFilterQuery(filter = [], allowedFields = []) {
         if (!Array.isArray(filter)) return { where: "", params: [] };
 
@@ -109,6 +142,7 @@ class ExportController {
                 fileName: "users.xlsx",
                 titleLine2: "Danh sách người dùng",
                 matrix: {
+                    textKeys: ["submitted_at", "updated_at"],
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
                         { header: "ID", key: "id", width: 10 },
@@ -126,7 +160,12 @@ class ExportController {
                         { header: "Ngày tạo", key: "created_at", width: 20 },
                         { header: "Ngày cập nhật", key: "updated_at", width: 20 },
                     ],
-                    rows: rows.map((row, index) => ({ ...row, stt: index + 1 })),
+                    rows: rows.map((row, index) => ({
+                        ...row,
+                        stt: index + 1,
+                        submitted_at: ExportController.formatUtc7DateTime(row.submitted_at),
+                        updated_at: ExportController.formatUtc7DateTime(row.updated_at),
+                    })),
                 },
             };
 
@@ -207,7 +246,12 @@ class ExportController {
                         { header: "Ngày nộp", key: "submitted_at", width: 20 },
                         { header: "Cập nhật", key: "updated_at", width: 20 },
                     ],
-                    rows: rows.map((row, index) => ({ ...row, stt: index + 1 })),
+                    rows: rows.map((row, index) => ({
+                        ...row,
+                        stt: index + 1,
+                        submitted_at: ExportController.formatUtc7DateTime(row.submitted_at),
+                        updated_at: ExportController.formatUtc7DateTime(row.updated_at),
+                    })),
                 },
             };
 

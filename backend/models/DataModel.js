@@ -67,6 +67,9 @@ class DataModel {
 
         const columns = normalizeColumns(matrix?.columns);
         const rows = Array.isArray(matrix?.rows) ? matrix.rows : [];
+        const textKeys = Array.isArray(matrix?.textKeys)
+            ? matrix.textKeys.map((key) => String(key || "").trim()).filter(Boolean)
+            : [];
         const resolvedTitleLine2 = titleLine2 || `Danh sách ${sheetName}`;
 
         if (!sheetName || !fileName || columns.length === 0) {
@@ -129,6 +132,14 @@ class DataModel {
             rows.forEach((row) => {
                 const addedRow = worksheet.addRow(row);
                 addedRow.height = 22;
+
+                textKeys.forEach((key) => {
+                    const columnIndex = columns.findIndex((column) => column.key === key);
+                    if (columnIndex >= 0) {
+                        const cell = addedRow.getCell(columnIndex + 1);
+                        cell.numFmt = "@";
+                    }
+                });
             });
 
             worksheet.eachRow((row, rowNumber) => {
