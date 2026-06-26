@@ -30,6 +30,9 @@ type ResultRow = {
   final_points: number | string
 }
 
+type SortKey = 'time' | 'table' | 'author' | 'title' | 'facebook' | 'vote' | 'judge' | 'total' | 'status'
+type SortDirection = 'desc' | 'asc' | 'time'
+
 const PAGE_SIZE = 10
 
 function toNumber(value: number | string | null | undefined) {
@@ -53,7 +56,12 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url)
 }
 
-function buildExportFilter(tableFilter: string, provinceFilter: string) {
+function buildExportFilter(
+  tableFilter: string,
+  provinceFilter: string,
+  facebookFilter: string,
+  statusFilter: string,
+) {
   const filter: Array<{ key: string; operator?: string; value: string | number }> = []
 
   if (tableFilter !== 'ALL') {
@@ -64,11 +72,52 @@ function buildExportFilter(tableFilter: string, provinceFilter: string) {
     filter.push({ key: 'author_province_name', value: provinceFilter })
   }
 
+  if (facebookFilter === 'HAS') {
+    filter.push({ key: 'fb_url', operator: 'IS NOT NULL', value: 1 })
+  } else if (facebookFilter === 'NO') {
+    filter.push({ key: 'fb_url', operator: 'IS NULL', value: 1 })
+  }
+
+  if (statusFilter === 'PASS') {
+    filter.push({ key: 'is_failed', value: 0 })
+  } else if (statusFilter === 'FAIL') {
+    filter.push({ key: 'is_failed', value: 1 })
+  }
+
   return filter
 }
 
 function getExportFileName() {
   return 'submissions.xlsx'
+}
+
+function compareText(leftValue: string, rightValue: string, direction: Exclude<SortDirection, 'time'>) {
+  const left = leftValue.trim()
+  const right = rightValue.trim()
+  const result = left.localeCompare(right, 'vi', { sensitivity: 'base' })
+  return direction === 'desc' ? -result : result
+}
+
+function compareNumber(leftValue: number, rightValue: number, direction: Exclude<SortDirection, 'time'>) {
+  return direction === 'desc' ? rightValue - leftValue : leftValue - rightValue
+}
+
+function compareLink(leftValue: string, rightValue: string, direction: Exclude<SortDirection, 'time'>) {
+  const leftHas = Boolean(leftValue.trim())
+  const rightHas = Boolean(rightValue.trim())
+
+  if (leftHas !== rightHas) {
+    return direction === 'desc'
+      ? Number(rightHas) - Number(leftHas)
+      : Number(leftHas) - Number(rightHas)
+  }
+
+  return compareText(leftValue, rightValue, direction)
+}
+
+function getDefaultSortDirection(key: Exclude<SortKey, 'time'>): Exclude<SortDirection, 'time'> {
+  if (key === 'table' || key === 'author' || key === 'title' || key === 'status') return 'asc'
+  return 'desc'
 }
 
 
@@ -95,13 +144,44 @@ export default function TwAdminSubmissions() {
 
   const [voteRankSaving, setVoteRankSaving] = useState(false)
   const [voteRankError, setVoteRankError] = useState('')
-  const [sortMode, setSortMode] = useState<'time' | 'score-desc'>('time')
+  const [sortState, setSortState] = useState<{ key: SortKey; direction: SortDirection }>({
+    key: 'time',
+    direction: 'time',
+  })
   const [page, setPage] = useState(1)
+  const [pageInput, setPageInput] = useState('1')
   const [tableFilter, setTableFilter] = useState('ALL')
   const [provinceFilter, setProvinceFilter] = useState('ALL')
+  const [facebookFilter, setFacebookFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
   const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
+
+  function cycleSort(key: Exclude<SortKey, 'time'>) {
+    setSortState((current) => {
+      if (current.key !== key) {
+        return { key, direction: getDefaultSortDirection(key) }
+      }
+
+      const defaultDirection = getDefaultSortDirection(key)
+
+      if (current.direction === defaultDirection) {
+        return { key, direction: defaultDirection === 'asc' ? 'desc' : 'asc' }
+      }
+
+      if (current.direction !== 'time') {
+        return { key, direction: 'time' }
+      }
+
+      return { key, direction: defaultDirection }
+    })
+  }
+
+  function getSortIcon(key: Exclude<SortKey, 'time'>) {
+    if (sortState.key !== key || sortState.direction === 'time') return '↕'
+    return sortState.direction === 'desc' ? '↓' : '↑'
+  }
 
   async function updateFailureStatus(id: number, isFailed: boolean, failedReason?: string) {
     const payload: { is_failed: boolean; failed_reason?: string } = {
@@ -232,7 +312,14 @@ export default function TwAdminSubmissions() {
     const filteredBySelections = submissions.filter((row) => {
       const tableOk = tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter
       const provinceOk = provinceFilter === 'ALL' || row.author_province_name === provinceFilter
-      return tableOk && provinceOk
+      const facebookOk =
+        facebookFilter === 'ALL' ||
+        (facebookFilter === 'HAS' ? Boolean(row.fb_url?.trim()) : !row.fb_url?.trim())
+      const statusOk =
+        statusFilter === 'ALL' ||
+        (statusFilter === 'PASS' ? row.is_failed === 0 : row.is_failed !== 0)
+
+      return tableOk && provinceOk && facebookOk && statusOk
     })
 
     const normalizedQuery = query.trim().toLowerCase()
@@ -244,26 +331,136 @@ export default function TwAdminSubmissions() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalizedQuery))
     })
-  }, [submissions, tableFilter, provinceFilter, query, tableNameById])
+  }, [submissions, tableFilter, provinceFilter, facebookFilter, statusFilter, query, tableNameById])
 
   const displayedRows = useMemo(() => {
-    if (sortMode !== 'score-desc') return filteredRows
+    if (sortState.direction === 'time' || sortState.key === 'time') return filteredRows
+    const direction = sortState.direction as Exclude<SortDirection, 'time'>
 
-    return [...filteredRows].sort((left, right) => {
-      const leftScore = toNumber(resultBySubmissionId.get(left.id)?.final_points)
-      const rightScore = toNumber(resultBySubmissionId.get(right.id)?.final_points)
+    const sortedRows = [...filteredRows].sort((left, right) => {
+      const leftResult = resultBySubmissionId.get(left.id)
+      const rightResult = resultBySubmissionId.get(right.id)
+      const leftTableName = tableNameById.get(left.competition_table_id || 0) || ''
+      const rightTableName = tableNameById.get(right.competition_table_id || 0) || ''
+      const leftAuthor = left.author_full_name || ''
+      const rightAuthor = right.author_full_name || ''
+      const leftTitle = left.title || ''
+      const rightTitle = right.title || ''
+      const leftFb = left.fb_url || ''
+      const rightFb = right.fb_url || ''
 
-      return rightScore - leftScore || right.id - left.id
+      let result = 0
+
+      switch (sortState.key) {
+        case 'table':
+          result = compareText(leftTableName, rightTableName, direction)
+          break
+        case 'author':
+          result = compareText(leftAuthor, rightAuthor, direction)
+          break
+        case 'title':
+          result = compareText(leftTitle, rightTitle, direction)
+          break
+        case 'facebook':
+          result = compareLink(leftFb, rightFb, direction)
+          break
+        case 'vote':
+          result = compareNumber(
+            toNumber(leftResult?.vote_converted_points),
+            toNumber(rightResult?.vote_converted_points),
+            direction,
+          )
+          break
+        case 'judge':
+          result = compareNumber(
+            toNumber(leftResult?.judge_total_points),
+            toNumber(rightResult?.judge_total_points),
+            direction,
+          )
+          break
+        case 'total':
+          result = compareNumber(
+            toNumber(leftResult?.final_points),
+            toNumber(rightResult?.final_points),
+            direction,
+          )
+          break
+        case 'status':
+          result = compareNumber(left.is_failed, right.is_failed, direction)
+          break
+        default:
+          result = 0
+      }
+
+      return result || right.id - left.id
     })
-  }, [filteredRows, resultBySubmissionId, sortMode])
+
+    return sortedRows
+  }, [filteredRows, resultBySubmissionId, sortState.direction, sortState.key, tableNameById])
 
   const totalPages = Math.max(1, Math.ceil(displayedRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const pagedRows = displayedRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   useEffect(() => {
+    setPageInput(String(safePage))
+  }, [safePage])
+
+  function jumpToPage(rawValue: string) {
+    const nextPage = Number(rawValue)
+    if (!Number.isInteger(nextPage)) return
+    setPage(Math.min(totalPages, Math.max(1, nextPage)))
+  }
+
+  function handlePageJumpSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    jumpToPage(pageInput)
+  }
+
+  function renderPagination(position: 'top' | 'bottom') {
+    const pageJumpId = `tw-page-jump-${position}`
+
+    return (
+      <div className="vb-tw-pagination">
+        <button
+          type="button"
+          className="vb-tw-btn-muted"
+          disabled={safePage <= 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Trang trước
+        </button>
+        <form className="vb-tw-pagination-jump" onSubmit={handlePageJumpSubmit}>
+          <label htmlFor={pageJumpId} className="vb-sr-only">
+            Đi đến trang
+          </label>
+          <input
+            id={pageJumpId}
+            className="vb-input"
+            type="number"
+            min={1}
+            max={totalPages}
+            value={pageInput}
+            onChange={(e) => setPageInput(e.target.value)}
+            onBlur={() => jumpToPage(pageInput)}
+          />
+          <span>/ {totalPages}</span>
+        </form>
+        <button
+          type="button"
+          className="vb-tw-btn-muted"
+          disabled={safePage >= totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Trang sau
+        </button>
+      </div>
+    )
+  }
+
+  useEffect(() => {
     setPage(1)
-  }, [tableFilter, provinceFilter, query])
+  }, [tableFilter, provinceFilter, facebookFilter, statusFilter, query, sortState.direction, sortState.key])
 
   const kpiStats = useMemo(() => {
     const regionSet = new Set<string>()
@@ -406,7 +603,7 @@ export default function TwAdminSubmissions() {
     try {
       const response = await api.post(
         '/api/v1/export/submissions',
-        { filter: buildExportFilter(tableFilter, provinceFilter) },
+        { filter: buildExportFilter(tableFilter, provinceFilter, facebookFilter, statusFilter) },
         { responseType: 'blob' },
       )
 
@@ -476,12 +673,15 @@ export default function TwAdminSubmissions() {
           <p className="vb-section-note">{displayedRows.length} bài nộp khớp điều kiện hiện tại.</p>
         </div>
 
+        {renderPagination('top')}
+
         <div className="vb-tw-toolbar-row">
           <div className="vb-account-search">
             <label htmlFor="tw-submission-search">Tìm kiếm</label>
             <input
               id="tw-submission-search"
               className="vb-input"
+              style={{ maxWidth: 260 }}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Tiêu đề, người nộp, tỉnh/thành, phường, bảng thi..."
@@ -521,6 +721,32 @@ export default function TwAdminSubmissions() {
                 ))}
               </select>
             </div>
+            <div>
+              <label htmlFor="tw-facebook-filter">Bài đăng Facebook</label>
+              <select
+                id="tw-facebook-filter"
+                className="vb-select"
+                value={facebookFilter}
+                onChange={(e) => setFacebookFilter(e.target.value)}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="HAS">Đã có bài đăng</option>
+                <option value="NO">Chưa có bài đăng</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="tw-status-filter">Đạt yêu cầu</label>
+              <select
+                id="tw-status-filter"
+                className="vb-select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="PASS">Đạt yêu cầu</option>
+                <option value="FAIL">Chưa đạt yêu cầu</option>
+              </select>
+            </div>
           </div>
 
           <div className="vb-tw-toolbar-cta">
@@ -539,26 +765,55 @@ export default function TwAdminSubmissions() {
           <table className="vb-account-table">
             <thead>
               <tr>
-                <th>Bảng thi</th>
-                <th>Người nộp</th>
-                <th>Tiêu đề</th>
-                <th>Bài thi</th>
-                <th>Link Facebook</th>
-                <th>Điểm bình chọn</th>
-                <th>Điểm bài thi</th>
                 <th>
-                  <button
-                    type="button"
-                    className="vb-table-sort-button"
-                    onClick={() =>
-                      setSortMode((current) => (current === 'score-desc' ? 'time' : 'score-desc'))
-                    }
-                  >
-                    Tổng điểm
-                    <span>{sortMode === 'score-desc' ? '↓' : '↕'}</span>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('table')}>
+                    Bảng thi
+                    <span>{getSortIcon('table')}</span>
                   </button>
                 </th>
-                <th>Đạt yêu cầu</th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('author')}>
+                    Người nộp
+                    <span>{getSortIcon('author')}</span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('title')}>
+                    Tiêu đề
+                    <span>{getSortIcon('title')}</span>
+                  </button>
+                </th>
+                <th>Bài thi</th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('facebook')}>
+                    Link Facebook
+                    <span>{getSortIcon('facebook')}</span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('vote')}>
+                    Điểm bình chọn
+                    <span>{getSortIcon('vote')}</span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('judge')}>
+                    Điểm bài thi
+                    <span>{getSortIcon('judge')}</span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('total')}>
+                    Tổng điểm
+                    <span>{getSortIcon('total')}</span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('status')}>
+                    Đạt yêu cầu
+                    <span>{getSortIcon('status')}</span>
+                  </button>
+                </th>
                 <th>Hành động</th>
               </tr>
             </thead>
@@ -747,25 +1002,7 @@ export default function TwAdminSubmissions() {
           </div>
         ) : null}
 
-        <div className="vb-tw-pagination">
-          <button
-            type="button"
-            className="vb-tw-btn-muted"
-            disabled={safePage <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Trang trước
-          </button>
-          <span>Trang {safePage}/{totalPages}</span>
-          <button
-            type="button"
-            className="vb-tw-btn-muted"
-            disabled={safePage >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Trang sau
-          </button>
-        </div>
+        {renderPagination('bottom')}
       </section>
     </main>
   )

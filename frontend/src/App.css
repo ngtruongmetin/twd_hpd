@@ -1019,7 +1019,7 @@
 .vb-account-filters {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -1919,7 +1919,7 @@
 .vb-tw-toolbar-row {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px auto;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) auto;
   gap: 12px;
   align-items: end;
 }
@@ -2143,6 +2143,30 @@
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+}
+
+.vb-tw-pagination-jump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vb-tw-pagination-jump .vb-input {
+  width: 76px;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.vb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .vb-season-table-item > strong {

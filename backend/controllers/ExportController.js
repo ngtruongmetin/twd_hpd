@@ -7,7 +7,19 @@ class ExportController {
 
         const clauses = [];
         const params = [];
-        const allowedOperators = new Set(["=", "!=", "<>", ">", ">=", "<", "<=", "LIKE", "IN"]);
+        const allowedOperators = new Set([
+            "=",
+            "!=",
+            "<>",
+            ">",
+            ">=",
+            "<",
+            "<=",
+            "LIKE",
+            "IN",
+            "IS NULL",
+            "IS NOT NULL",
+        ]);
 
         filter.forEach((item) => {
             if (!item || !item.key || item.value == null) return;
@@ -25,6 +37,8 @@ class ExportController {
                 const placeholders = item.value.map(() => "?").join(",");
                 clauses.push(`${key} IN (${placeholders})`);
                 params.push(...item.value);
+            } else if (safeOperator === "IS NULL" || safeOperator === "IS NOT NULL") {
+                clauses.push(`${key} ${safeOperator}`);
             } else {
                 clauses.push(`${key} ${safeOperator} ?`);
                 params.push(item.value);
@@ -129,6 +143,8 @@ class ExportController {
             "author_province_name",
             "author_school_name",
             "submitted_by_user_id",
+            "fb_url",
+            "is_failed",
         ];
 
         const { where, params } = ExportController.buildFilterQuery(filter, allowedFields);
