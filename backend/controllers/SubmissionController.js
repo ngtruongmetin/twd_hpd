@@ -62,6 +62,27 @@ function createMailTransporter() {
     return transporter;
 }
 
+function logMailSendResult(label, info, extra = {}) {
+    console.info(`[Mail:${label}] sent`, {
+        messageId: info?.messageId || null,
+        accepted: info?.accepted || [],
+        rejected: info?.rejected || [],
+        response: info?.response || null,
+        envelope: info?.envelope || null,
+        ...extra,
+    });
+}
+
+function logMailSendError(label, error, extra = {}) {
+    console.error(`[Mail:${label}] failed`, {
+        code: error?.code || null,
+        response: error?.response || null,
+        command: error?.command || null,
+        message: error?.message || String(error),
+        ...extra,
+    });
+}
+
 async function sendFacebookPublicationNotificationEmail({ user, facebookPostUrl }) {
     const transporter = createMailTransporter();
     const subject = "Bài thi của bạn đã được đăng trên fanpage Thanh niên trường học";
@@ -258,9 +279,123 @@ async function sendFacebookPublicationNotificationEmail({ user, facebookPostUrl 
             ],
         });
 
+        logMailSendResult("SUBMISSION_PUBLISHED", info, {
+            to: user.email,
+            subject,
+        });
+
         return { sent: info.accepted?.length > 0, info };
     } catch (error) {
+        logMailSendError("SUBMISSION_PUBLISHED", error, {
+            to: user.email,
+            subject,
+        });
         return { sent: false, error: error?.message || "Không gửi được email thông báo" };
+    }
+}
+
+async function sendSubmissionFailureNotificationEmail({ user, submission, failedReason }) {
+    const transporter = createMailTransporter();
+    const subject = "Thông báo kết quả bài thi";
+    const safeFullName = escapeHtml(user.full_name || user.username || "bạn");
+    const safeTitle = escapeHtml(submission.title || "Bài thi");
+    const safeReason = escapeHtml(failedReason || "Không có lý do chi tiết");
+    const text = [
+        `Xin chào ${user.full_name || user.username || "bạn"},`,
+        "",
+        "Bài thi của bạn đã được đánh giá là không đạt.",
+        `Tiêu đề bài thi: ${submission.title || "Bài thi"}`,
+        `Lý do không đạt: ${failedReason || "Không có lý do chi tiết"}`,
+        "",
+        "Vui lòng xem lại nội dung và liên hệ ban tổ chức nếu cần thêm thông tin.",
+    ].join("\n");
+
+    const html = `
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8" />
+      </head>
+      <body style="margin:0;padding:0;background:#fafafa;font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#111">
+        <div style="max-width:640px;margin:0 auto;padding:24px 16px">
+          <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:24px">
+            <p style="margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.08em">Thông báo kết quả</p>
+            <h1 style="margin:0 0 12px;font-size:24px;line-height:1.3;font-weight:700;color:#111">Bài thi chưa đạt yêu cầu</h1>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.8;color:#525252">Xin chào <strong style="color:#111">${safeFullName}</strong>, bài thi của bạn đã được đánh giá là không đạt.</p>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;color:#737373;font-size:12px;font-weight:700;text-transform:uppercase">Tiêu đề bài thi</td>
+                <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:600">${safeTitle}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;color:#737373;font-size:12px;font-weight:700;text-transform:uppercase">Trạng thái</td>
+                <td style="padding:10px 0;text-align:right;font-weight:700;color:#dc2626">Không đạt</td>
+              </tr>
+            </table>
+            <div style="margin-top:16px;padding:14px 16px;border-left:4px solid #dc2626;background:#fef2f2">
+              <p style="margin:0 0 4px;color:#991b1b;font-size:12px;font-weight:700;text-transform:uppercase">Lý do không đạt</p>
+              <p style="margin:0;font-size:15px;line-height:1.8;color:#111">${safeReason}</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    if (!transporter) {
+        await writeEmailLog({
+            userId: user.id,
+            email: user.email,
+            templateCode: "SUBMISSION_FAILURE",
+            subject,
+            status: "FAILED",
+            errorMessage: "Thieu cau hinh MAIL_ADDRESS hoac MAIL_PASSWORD",
+        });
+        return { sent: false, skipped: true };
+    }
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Ban chỉ huy Trung ương chiến dịch Hoa Phượng Đỏ" <${process.env.MAIL_ADDRESS}>`,
+            to: user.email,
+            subject,
+            text,
+            html,
+        });
+
+        logMailSendResult("SUBMISSION_FAILURE", info, {
+            to: user.email,
+            subject,
+            submissionId: submission?.id || null,
+        });
+
+        await writeEmailLog({
+            userId: user.id,
+            email: user.email,
+            templateCode: "SUBMISSION_FAILURE",
+            subject,
+            status: info.accepted?.length > 0 ? "SENT" : "FAILED",
+            sentAt: info.accepted?.length > 0 ? new Date().toISOString() : null,
+            errorMessage: info.accepted?.length > 0 ? null : "Mail server khong chap nhan nguoi nhan",
+        });
+
+        return { sent: info.accepted?.length > 0, messageId: info.messageId };
+    } catch (error) {
+        logMailSendError("SUBMISSION_FAILURE", error, {
+            to: user.email,
+            subject,
+            submissionId: submission?.id || null,
+        });
+
+        await writeEmailLog({
+            userId: user.id,
+            email: user.email,
+            templateCode: "SUBMISSION_FAILURE",
+            subject,
+            status: "FAILED",
+            errorMessage: error?.message || "Khong gui duoc email thong bao khong dat",
+        });
+
+        return { sent: false, error: error?.message || "Khong gui duoc email thong bao khong dat" };
     }
 }
 
@@ -712,6 +847,23 @@ class SubmissionController {
                 "SELECT * FROM submissions WHERE id = ?",
                 [id]
             );
+
+            if (isFailed) {
+                const user = await dbGet(
+                    "SELECT id, email, full_name, username FROM users WHERE id = ?",
+                    [submission.submitted_by_user_id]
+                );
+
+                if (user?.email) {
+                    void sendSubmissionFailureNotificationEmail({
+                        user,
+                        submission: updatedSubmission || submission,
+                        failedReason,
+                    }).catch((error) => {
+                        console.error("[SubmissionController] Failed to send submission failure email:", error);
+                    });
+                }
+            }
 
             return res.status(200).json({
                 success: true,

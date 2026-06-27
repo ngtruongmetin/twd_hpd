@@ -286,7 +286,7 @@ export default function TwAdminSubmissions() {
       await updateFailureStatus(failureTarget.id, true, reason)
       closeFailureDialog()
       await loadData()
-      setMessage('Đã cập nhật trạng thái bài thi.')
+      setMessage('Đã cập nhật trạng thái bài thi và kích hoạt email lý do không đạt.')
     } catch (err: unknown) {
       setFailureError(normalizeError(err, 'Không cập nhật được trạng thái bài thi.'))
     } finally {
@@ -1019,7 +1019,7 @@ export default function TwAdminSubmissions() {
               </div>
               <form className="vb-modal-body vb-modal-form" onSubmit={handleFailureSubmit}>
                 <p className="vb-modal-description">
-                  Nhập lý do không đạt cho <strong>{failureTarget.title || 'bài thi này'}</strong>.
+                  Nhập lý do không đạt cho <strong>{failureTarget.title || 'bài thi này'}</strong>. Lý do này sẽ được gửi email cho thí sinh sau khi lưu.
                 </p>
                 <div className="vb-field">
                   <textarea

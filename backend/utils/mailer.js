@@ -27,6 +27,27 @@ function createGmailTransporter() {
   return transporter;
 }
 
+function logMailSendResult(label, info, extra = {}) {
+  console.info(`[Mail:${label}] sent`, {
+    messageId: info?.messageId || null,
+    accepted: info?.accepted || [],
+    rejected: info?.rejected || [],
+    response: info?.response || null,
+    envelope: info?.envelope || null,
+    ...extra,
+  });
+}
+
+function logMailSendError(label, error, extra = {}) {
+  console.error(`[Mail:${label}] failed`, {
+    code: error?.code || null,
+    response: error?.response || null,
+    command: error?.command || null,
+    message: error?.message || String(error),
+    ...extra,
+  });
+}
+
 async function sendAccountCredentialsEmail({ toEmail, username, password, fullName }) {
   const transporter = createGmailTransporter();
 
@@ -92,6 +113,12 @@ async function sendAccountCredentialsEmail({ toEmail, username, password, fullNa
         cid: "chuhieu",
       },
     ],
+  }).then((info) => {
+    logMailSendResult("ACCOUNT_CREDENTIALS", info, { to: toEmail, subject });
+    return info;
+  }).catch((error) => {
+    logMailSendError("ACCOUNT_CREDENTIALS", error, { to: toEmail, subject });
+    throw error;
   });
 }
 
@@ -160,6 +187,12 @@ async function sendPasswordResetEmail({ toEmail, username, password, fullName })
         cid: "chuhieu",
       },
     ],
+  }).then((info) => {
+    logMailSendResult("PASSWORD_RESET", info, { to: toEmail, subject });
+    return info;
+  }).catch((error) => {
+    logMailSendError("PASSWORD_RESET", error, { to: toEmail, subject });
+    throw error;
   });
 }
 
