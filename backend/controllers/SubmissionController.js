@@ -315,25 +315,30 @@ async function sendSubmissionFailureNotificationEmail({ user, submission, failed
       <head>
         <meta charset="UTF-8" />
       </head>
-      <body style="margin:0;padding:0;background:#fafafa;font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#111">
-        <div style="max-width:640px;margin:0 auto;padding:24px 16px">
-          <div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:24px">
-            <p style="margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.08em">Thông báo kết quả</p>
-            <h1 style="margin:0 0 12px;font-size:24px;line-height:1.3;font-weight:700;color:#111">Bài thi chưa đạt yêu cầu</h1>
-            <p style="margin:0 0 16px;font-size:15px;line-height:1.8;color:#525252">Xin chào <strong style="color:#111">${safeFullName}</strong>, bài thi của bạn đã được đánh giá là không đạt.</p>
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">
-              <tr>
-                <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;color:#737373;font-size:12px;font-weight:700;text-transform:uppercase">Tiêu đề bài thi</td>
-                <td style="padding:10px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:600">${safeTitle}</td>
-              </tr>
-              <tr>
-                <td style="padding:10px 0;color:#737373;font-size:12px;font-weight:700;text-transform:uppercase">Trạng thái</td>
-                <td style="padding:10px 0;text-align:right;font-weight:700;color:#dc2626">Không đạt</td>
-              </tr>
-            </table>
-            <div style="margin-top:16px;padding:14px 16px;border-left:4px solid #dc2626;background:#fef2f2">
-              <p style="margin:0 0 4px;color:#991b1b;font-size:12px;font-weight:700;text-transform:uppercase">Lý do không đạt</p>
-              <p style="margin:0;font-size:15px;line-height:1.8;color:#111">${safeReason}</p>
+      <body style="margin:0;padding:0;background:#fafafa;font-family:'Be Vietnam Pro','Segoe UI',Tahoma,Arial,sans-serif;color:#111">
+        <div style="max-width:680px;margin:0 auto;padding:28px 18px">
+          <div style="border:1px solid #e5e5e5;border-top:5px solid #ef4444;background:#fff;border-radius:16px;overflow:hidden">
+            <div style="padding:24px 28px;border-bottom:1px solid #e5e5e5">
+              <img src="cid:chuhieu" alt="Hoa Phượng Đỏ" style="display:block;width:220px;max-width:100%;height:auto;margin:0 auto 20px" />
+              <p style="margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.08em">THÔNG BÁO KẾT QUẢ</p>
+              <h1 style="margin:0;font-size:28px;line-height:1.25;font-weight:800;color:#111">Bài thi chưa đạt yêu cầu</h1>
+              <p style="margin:14px 0 0;font-size:16px;line-height:1.75;color:#525252">Xin chào <strong style="color:#111">${safeFullName}</strong>, bài thi của bạn đã được đánh giá là không đạt.</p>
+            </div>
+            <div style="padding:24px 28px">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5e5;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Tiêu đề bài thi</td>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:700">${safeTitle}</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5e5;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Trạng thái</td>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5e5;text-align:right;font-weight:700;color:#dc2626">Không đạt</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;color:#a3a3a3;font-size:12px;font-weight:700;text-transform:uppercase">Lý do không đạt</td>
+                  <td style="padding:12px 0;text-align:right;font-weight:700;word-break:break-word">${safeReason}</td>
+                </tr>
+              </table>
             </div>
           </div>
         </div>
@@ -360,6 +365,13 @@ async function sendSubmissionFailureNotificationEmail({ user, submission, failed
             subject,
             text,
             html,
+            attachments: [
+                {
+                    filename: "chuhieu.png",
+                    path: CHUHIEU_PNG_PATH,
+                    cid: "chuhieu",
+                },
+            ],
         });
 
         logMailSendResult("SUBMISSION_FAILURE", info, {
