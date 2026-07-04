@@ -143,13 +143,8 @@ export default function LookupSubmissions() {
               }}
             />
 
-            <WardSelector
-              provinceCode={province?.code ?? null}
-              value={ward}
-              onChange={setWard}
-            />
+            <WardSelector provinceCode={province?.code ?? null} value={ward} onChange={setWard} />
           </div>
-
 
           {error ? <p className="vb-form-error vb-lookup-error">{error}</p> : null}
 
@@ -167,7 +162,6 @@ export default function LookupSubmissions() {
             <p className="vb-overline">Kết quả</p>
             <h2>{submitted ? `${matchedCount} bài nộp được tìm thấy` : 'Chưa tra cứu'}</h2>
           </div>
-
         </div>
 
         <div className="vb-lookup-table-wrap">
@@ -204,9 +198,11 @@ export default function LookupSubmissions() {
                       )}
                     </td>
                     <td>
-                      {row.facebook_post_url ? (
+                      {row.status === 'Không đạt' ? (
+                        'Không được đăng tải'
+                      ) : row.facebook_post_url ? (
                         <a className="vb-tw-btn-link" href={row.facebook_post_url} target="_blank" rel="noreferrer">
-                          Xem bài đăng
+                          Xem bài đăng Facebook
                         </a>
                       ) : (
                         'Đang chờ đăng tải'
@@ -214,9 +210,7 @@ export default function LookupSubmissions() {
                     </td>
                     <td>{displayValue(row.other_members)}</td>
                     <td>
-                      <span className={`vb-lookup-status is-${getStatusTone(row.status)}`}>
-                        {row.status}
-                      </span>
+                      <span className={`vb-lookup-status is-${getStatusTone(row.status)}`}>{row.status}</span>
                     </td>
                     <td>{displayValue(row.failed_reason)}</td>
                     <td>{formatSubmissionTime(row.submitted_at_display, row.submitted_at)}</td>
@@ -270,7 +264,9 @@ export default function LookupSubmissions() {
                   <div>
                     <dt>Link bài đăng Facebook</dt>
                     <dd>
-                      {row.facebook_post_url ? (
+                      {row.status === 'Không đạt' ? (
+                        'Không được đăng tải'
+                      ) : row.facebook_post_url ? (
                         <a className="vb-tw-btn-link" href={row.facebook_post_url} target="_blank" rel="noreferrer">
                           Xem bài đăng Facebook
                         </a>
@@ -282,9 +278,7 @@ export default function LookupSubmissions() {
                   <div>
                     <dt>Trạng thái bài thi</dt>
                     <dd>
-                      <span className={`vb-lookup-status is-${getStatusTone(row.status)}`}>
-                        {row.status}
-                      </span>
+                      <span className={`vb-lookup-status is-${getStatusTone(row.status)}`}>{row.status}</span>
                     </dd>
                   </div>
                   <div>

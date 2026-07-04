@@ -613,6 +613,7 @@ export default function ContestantSubmissions() {
                                         <th>Link bài thi</th>
                                         <th>Bài đăng Facebook</th>
                                         <th>Trạng thái</th>
+                                        <th>Lý do không đạt</th>
                                         <th>Thời gian nộp</th>
                                         <th>Hành động</th>
                                     </tr>
@@ -641,7 +642,9 @@ export default function ContestantSubmissions() {
                                                         )}
                                                     </td>
                                                     <td>
-                                                        {submission.fb_url ? (
+                                                        {submission.is_failed === 1 ? (
+                                                            'Không được đăng tải'
+                                                        ) : submission.fb_url ? (
                                                             <a className="vb-tw-btn-link" href={submission.fb_url} target="_blank" rel="noreferrer">
                                                                 Xem bài đăng Facebook
                                                             </a>
@@ -654,6 +657,7 @@ export default function ContestantSubmissions() {
                                                             {statusLabel}
                                                         </span>
                                                     </td>
+                                                    <td>{submission.failed_reason || 'Không có'}</td>
                                                     <td>{formatDate(submission.submitted_at || submission.created_at)}</td>
                                                     <td>
                                                         <button
@@ -669,7 +673,7 @@ export default function ContestantSubmissions() {
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan={8} className="vb-contestant-empty">
+                                            <td colSpan={9} className="vb-contestant-empty">
                                                 Chưa có bài nào của bạn.
                                             </td>
                                         </tr>
