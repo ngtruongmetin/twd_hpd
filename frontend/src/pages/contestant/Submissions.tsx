@@ -32,6 +32,7 @@ type SubmissionRow = {
     submitted_by_user_id?: number | null
     description: string | null
     video_url: string | null
+    fb_url?: string | null
     author_full_name: string | null
     author_province_name: string | null
     author_ward_name: string | null
@@ -39,6 +40,9 @@ type SubmissionRow = {
     other_members: string | null
     drive_file_id: string | null
     drive_is_public: number | null
+    is_failed?: number | null
+    failed_reason?: string | null
+    submitted_at?: string | null
     created_at: string | null
     updated_at?: string | null
 }
@@ -77,6 +81,27 @@ function formatDate(value: string | null) {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(date)
+}
+
+function getStatusLabel(row: SubmissionRow) {
+    if (row.is_failed === 1) return 'Không đạt'
+    if (row.updated_at && row.submitted_at && row.updated_at !== row.submitted_at) {
+        return 'Đạt yêu cầu'
+    }
+    return 'Đang kiểm duyệt'
+}
+
+function getStatusTone(status: string) {
+    if (status === 'Không đạt') return 'failed'
+    if (status === 'Đạt yêu cầu') return 'approved'
+    return 'reviewing'
+}
+
+function getStatusClass(status: string) {
+    const tone = getStatusTone(status)
+    if (tone === 'failed') return 'is-failed'
+    if (tone === 'approved') return 'is-active'
+    return 'is-pending'
 }
 
 function normalizeSubmissionError(message: string) {
@@ -570,32 +595,87 @@ export default function ContestantSubmissions() {
 
                 <aside className="vb-contestant-aside">
                     <article className="vb-contestant-panel">
-                        <p className="vb-overline">Bài của tôi</p>
-                        <h3>Danh sách bài đã nộp</h3>
-                        <div className="vb-contestant-list">
-                            {mySubmissions.map((submission) => (
-                                <div key={submission.id} className="vb-contestant-list-item">
-                                    <div>
-                                        <small>
-                                            {submission.competition_table_id
-                                                ? competitionTableById.get(submission.competition_table_id) || `Bảng thi #${submission.competition_table_id}`
-                                                : 'Bảng thi'}
-                                        </small>
-                                        <strong>{submission.title}</strong>
-                                        <span>{submission.description || 'Không có mô tả'}</span>
-                                    </div>
-                                    <div className="vb-contestant-list-actions">
-                                        <button
-                                            type="button"
-                                            className="vb-btn vb-btn-secondary"
-                                            onClick={() => void handleDeleteSubmission(submission.id)}
-                                        >
-                                            {deletingId === submission.id ? 'Đang xóa...' : 'Xóa'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                            {mySubmissions.length === 0 ? <p className="vb-contestant-empty">Chưa có bài nào của bạn.</p> : null}
+                        <div className="vb-section-head is-compact">
+                            <div>
+                                <p className="vb-overline">Bài của tôi</p>
+                                <h3>Danh sách bài đã nộp</h3>
+                            </div>
+                            <p className="vb-section-note">{mySubmissions.length} bài nộp</p>
+                        </div>
+
+                        <div className="vb-contestant-table-wrap">
+                            <table className="vb-contestant-table">
+                                <thead>
+                                    <tr>
+                                        <th>Bảng thi</th>
+                                        <th>Tiêu đề</th>
+                                        <th>Mô tả</th>
+                                        <th>Link bài thi</th>
+                                        <th>Bài đăng Facebook</th>
+                                        <th>Trạng thái</th>
+                                        <th>Thời gian nộp</th>
+                                        <th>Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {mySubmissions.length > 0 ? (
+                                        mySubmissions.map((submission) => {
+                                            const statusLabel = getStatusLabel(submission)
+
+                                            return (
+                                                <tr key={submission.id}>
+                                                    <td>
+                                                        {submission.competition_table_id
+                                                            ? competitionTableById.get(submission.competition_table_id) || `Bảng thi #${submission.competition_table_id}`
+                                                            : 'Bảng thi'}
+                                                    </td>
+                                                    <td>{submission.title}</td>
+                                                    <td>{submission.description || 'Không có mô tả'}</td>
+                                                    <td>
+                                                        {submission.video_url ? (
+                                                            <a className="vb-tw-btn-link" href={submission.video_url} target="_blank" rel="noreferrer">
+                                                                Xem bài thi
+                                                            </a>
+                                                        ) : (
+                                                            'Không có'
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        {submission.fb_url ? (
+                                                            <a className="vb-tw-btn-link" href={submission.fb_url} target="_blank" rel="noreferrer">
+                                                                Xem bài đăng Facebook
+                                                            </a>
+                                                        ) : (
+                                                            'Đang chờ đăng tải'
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <span className={`vb-status-pill ${getStatusClass(statusLabel)}`}>
+                                                            {statusLabel}
+                                                        </span>
+                                                    </td>
+                                                    <td>{formatDate(submission.submitted_at || submission.created_at)}</td>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className="vb-tw-btn-danger"
+                                                            onClick={() => void handleDeleteSubmission(submission.id)}
+                                                        >
+                                                            {deletingId === submission.id ? 'Đang xóa...' : 'Xóa'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={8} className="vb-contestant-empty">
+                                                Chưa có bài nào của bạn.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </article>
                 </aside>

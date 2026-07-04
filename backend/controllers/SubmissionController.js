@@ -849,7 +849,7 @@ class SubmissionController {
                     `UPDATE submissions
                      SET is_failed = 0,
                          failed_reason = NULL,
-                         updated_at = CURRENT_TIMESTAMP
+                         updated_at = submitted_at
                      WHERE id = ?`,
                     [id]
                 );

@@ -121,6 +121,9 @@ export default function Navbar() {
         <nav className="vb-desktop-nav">
           {!loading && user ? (
             <span className="vb-nav-login-box">
+              <Link className="vb-nav-action" to="/tra-cuu-bai-thi">
+                Tra cứu bài thi
+              </Link>
               <Link to={dashboardPath}>Dashboard</Link>
               <button type="button" className="vb-nav-action" onClick={() => setPasswordModalOpen(true)}>
                 Đổi mật khẩu
@@ -131,6 +134,9 @@ export default function Navbar() {
             </span>
           ) : (
             <span className="vb-nav-login-box">
+              <Link className="vb-nav-action" to="/tra-cuu-bai-thi">
+                Tra cứu bài thi
+              </Link>
               <Link to="/login">Đăng nhập</Link>
             </span>
           )}
@@ -150,6 +156,9 @@ export default function Navbar() {
       </div>
 
       <div className={`vb-mobile-menu ${menuOpen ? 'is-open' : ''}`}>
+        <Link className="vb-mobile-action" to="/tra-cuu-bai-thi" onClick={closeMenu}>
+          Tra cứu bài thi
+        </Link>
         {!loading && user ? (
           <>
             <Link to={dashboardPath} onClick={closeMenu}>
