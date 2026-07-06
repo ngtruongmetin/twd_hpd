@@ -189,6 +189,7 @@ app.use("/api/v1/landing", require("./modules/landing/routes"));
 app.use("/api/v1/public", require("./modules/public/routes"));
 app.use("/api/v1/password", require("./modules/password/routes"));
 app.use("/api/v1/province", require("./modules/province/routes"));
+app.use("/api/v1/tw_admin", require("./modules/tw_admin/routes"));
 app.use("/api/v1/tech_admin", require("./modules/tech_admin/routes"));
 
 app.get("/", (req, res) => {

@@ -31,6 +31,11 @@ function applyBaseCellStyle(cell, { bold = false, fill = null } = {}) {
     }
 }
 
+function applySummaryCellStyle(cell) {
+    applyBaseCellStyle(cell, { bold: true });
+    applyBlackBorder(cell);
+}
+
 function applyBlackBorder(cell) {
     cell.border = {
         top: { style: "thin", color: { argb: "FF000000" } },
@@ -69,6 +74,12 @@ class DataModel {
         const rows = Array.isArray(matrix?.rows) ? matrix.rows : [];
         const textKeys = Array.isArray(matrix?.textKeys)
             ? matrix.textKeys.map((key) => String(key || "").trim()).filter(Boolean)
+            : [];
+        const boldKeys = Array.isArray(matrix?.boldKeys)
+            ? matrix.boldKeys.map((key) => String(key || "").trim()).filter(Boolean)
+            : [];
+        const summaryRows = Array.isArray(matrix?.summaryRows)
+            ? matrix.summaryRows.map((row) => Number(row)).filter((row) => Number.isFinite(row) && row > 0)
             : [];
         const resolvedTitleLine2 = titleLine2 || `Danh sách ${sheetName}`;
 
@@ -142,29 +153,32 @@ class DataModel {
                 });
             });
 
-            worksheet.eachRow((row, rowNumber) => {
-                if (rowNumber < 3) {
-                    return;
-                }
-
-                row.eachCell((cell) => {
-                    applyBaseCellStyle(cell);
-                    applyBlackBorder(cell);
-                });
-            });
-
             // Tô viền cho toàn bộ vùng dữ liệu, bao gồm cả hàng header.
             for (let rowIndex = 3; rowIndex <= worksheet.rowCount; rowIndex += 1) {
                 for (let colIndex = 1; colIndex <= columns.length; colIndex += 1) {
                     const cell = worksheet.getRow(rowIndex).getCell(colIndex);
-                    applyBaseCellStyle(cell, rowIndex === 3 ? {
-                        bold: true,
-                        fill: {
-                            type: "pattern",
-                            pattern: "solid",
-                            fgColor: { argb: "FFF2F2F2" },
-                        },
-                    } : {});
+                    const isHeader = rowIndex === 3;
+                    const dataRowIndex = rowIndex - 3;
+                    const isSummaryRow = summaryRows.includes(dataRowIndex);
+                    const shouldBold = isHeader || isSummaryRow || (rowIndex > 3 && boldKeys.includes(String(columns[colIndex - 1].key)));
+                    applyBaseCellStyle(cell, isHeader || isSummaryRow
+                        ? {
+                            bold: true,
+                            fill: isHeader
+                                ? {
+                                    type: "pattern",
+                                    pattern: "solid",
+                                    fgColor: { argb: "FFF2F2F2" },
+                                }
+                                : {
+                                    type: "pattern",
+                                    pattern: "solid",
+                                    fgColor: { argb: "FFF9FAFB" },
+                                },
+                        }
+                        : {
+                            bold: shouldBold,
+                        });
                     applyBlackBorder(cell);
                 }
             }

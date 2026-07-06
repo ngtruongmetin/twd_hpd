@@ -1351,13 +1351,17 @@
 }
 
 .vb-account-table-wrap {
-  overflow-x: auto;
+  max-height: 72vh;
+  overflow: auto;
+  border: 1px solid #ececec;
+  border-radius: 16px;
 }
 
 .vb-account-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 18px;
+  margin-top: 0;
+  background: #ffffff;
 }
 
 .vb-account-table th,
@@ -1374,12 +1378,28 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #a3a3a3;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .vb-account-table td {
   font-size: 14px;
   line-height: 1.6;
   color: #111111;
+}
+
+.vb-account-table tfoot th,
+.vb-account-table tfoot td {
+  font-weight: 700;
+  color: #0a2a5b;
+  background: #f8fafc;
+}
+
+.vb-account-table-total th,
+.vb-account-table-total td {
+  border-top: 2px solid #d4d4d4;
 }
 
 .vb-table-cell-middle {

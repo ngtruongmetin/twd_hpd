@@ -1,7 +1,37 @@
+import axios from 'axios'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { api } from '../../api/api'
 import Navbar from '../../components/Navbar'
 import { getDashboardTitleForRole } from '../../auth/role'
 import { useAuth } from '../../context/useAuth'
+
+type ProvinceApiItem = {
+  code: number
+  name: string
+}
+
+type ProvinceStatRow = {
+  province_key: string
+  province_name: string
+  total_submissions: number
+  failed_submissions: number
+  passed_submissions: number
+  pass_rate: number
+  top_ward_name: string | null
+  top_school_name: string | null
+}
+
+type ProvinceDisplayRow = {
+  stt: number
+  province_name: string
+  total_submissions: number
+  failed_submissions: number
+  passed_submissions: number
+  pass_rate: number
+  top_ward_name: string | null
+  top_school_name: string | null
+}
 
 const quickActions = [
   {
@@ -21,14 +51,146 @@ const quickActions = [
   },
 ]
 
+function normalizeText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0111\u0110]/g, 'd')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalizeProvinceKey(value: string) {
+  let text = normalizeText(value)
+  text = text.replace(/^(tp|thanh pho)\s+/g, '')
+  text = text.replace(/\s+city$/g, '')
+  return text
+}
+
+function normalizeError(err: unknown, fallback: string) {
+  if (axios.isAxiosError(err)) return err.response?.data?.message || fallback
+  return fallback
+}
+
+function formatRate(value: number) {
+  return `${value.toFixed(1)}%`
+}
+
 export default function TwAdminDashboard() {
   const { user } = useAuth()
   const title = getDashboardTitleForRole(user?.role_code)
   const displayName = user?.full_name || user?.username || 'TW_ADMIN'
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [provinceOptions, setProvinceOptions] = useState<ProvinceApiItem[]>([])
+  const [provinceStats, setProvinceStats] = useState<ProvinceStatRow[]>([])
+  const [exporting, setExporting] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    async function loadDashboardStats() {
+      setLoading(true)
+      setError('')
+
+      try {
+        const [provinceResponse, statsResponse] = await Promise.all([
+          fetch('https://provinces.open-api.vn/api/v2/p/'),
+          api.get('/api/v1/tw_admin/province-stats'),
+        ])
+
+        if (!active) return
+
+        if (!provinceResponse.ok) {
+          throw new Error('Không tải được danh sách tỉnh/thành.')
+        }
+
+        const provinceData = (await provinceResponse.json()) as ProvinceApiItem[]
+        setProvinceOptions(provinceData)
+        setProvinceStats((statsResponse.data?.data ?? []) as ProvinceStatRow[])
+      } catch (err: unknown) {
+        if (!active) return
+        setError(normalizeError(err, 'Không tải được thống kê tỉnh/thành.'))
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void loadDashboardStats()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const displayedRows = useMemo(() => {
+    const statsByProvince = new Map(provinceStats.map((row) => [normalizeProvinceKey(row.province_key || row.province_name), row]))
+
+    return provinceOptions.map((province, index) => {
+      const stat = statsByProvince.get(normalizeProvinceKey(province.name))
+
+      return {
+        stt: index + 1,
+        province_name: province.name,
+        total_submissions: stat?.total_submissions ?? 0,
+        failed_submissions: stat?.failed_submissions ?? 0,
+        passed_submissions: stat?.passed_submissions ?? 0,
+        pass_rate: stat?.pass_rate ?? 0,
+        top_ward_name: stat?.top_ward_name ?? null,
+        top_school_name: stat?.top_school_name ?? null,
+      } satisfies ProvinceDisplayRow
+    })
+  }, [provinceOptions, provinceStats])
+
+  const totalsRow = useMemo(() => {
+    return displayedRows.reduce(
+      (acc, row) => {
+        acc.total_submissions += row.total_submissions
+        acc.failed_submissions += row.failed_submissions
+        acc.passed_submissions += row.passed_submissions
+        return acc
+      },
+      {
+        total_submissions: 0,
+        failed_submissions: 0,
+        passed_submissions: 0,
+      },
+    )
+  }, [displayedRows])
+
+  async function handleExportProvinceStats() {
+    try {
+      setExporting(true)
+      const response = await api.post(
+        '/api/v1/export/province-stats',
+        {},
+        { responseType: 'blob' },
+      )
+
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'province_stats.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (err: unknown) {
+      setError(normalizeError(err, 'Không xuất được file Excel thống kê tỉnh/thành.'))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <main className="vb-page vb-dashboard-page vb-dashboard-tw">
       <Navbar />
+
       <section className="vb-admin-hero vb-card vb-card-editorial">
         <div className="vb-admin-hero-copy">
           <p className="vb-overline">Điều hành trung ương</p>
@@ -53,6 +215,9 @@ export default function TwAdminDashboard() {
         </aside>
       </section>
 
+      {error ? <section className="vb-account-banner is-error">{error}</section> : null}
+      {loading ? <section className="vb-account-banner">Đang tải thống kê 34 tỉnh/thành...</section> : null}
+
       <section className="vb-admin-section">
         <div className="vb-section-head">
           <div>
@@ -70,6 +235,61 @@ export default function TwAdminDashboard() {
               </Link>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="vb-season-panel" style={{ marginTop: 24 }}>
+        <div className="vb-section-head is-compact">
+          <div>
+            <p className="vb-overline">Thống kê địa phương</p>
+            <h2>Số liệu thống kê 34 tỉnh/thành</h2>
+          </div>
+          <button type="button" className="vb-tw-btn-primary" onClick={() => void handleExportProvinceStats()} disabled={exporting}>
+            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+          </button>
+        </div>
+
+        <div className="vb-account-table-wrap">
+          <table className="vb-account-table">
+            <thead>
+              <tr>
+                <th style={{ width: 72, textAlign: 'center' }}>STT</th>
+                <th>Tỉnh/thành phố</th>
+                <th style={{ textAlign: 'right' }}>Tổng bài dự thi</th>
+                <th style={{ textAlign: 'right' }}>Số bài không đạt</th>
+                <th style={{ textAlign: 'right' }}>Số bài đạt</th>
+                <th style={{ textAlign: 'right' }}>Tỷ lệ đạt điều kiện</th>
+                <th>Xã/phường nhiều bài dự thi nhất</th>
+                <th>Trường nhiều bài dự thi nhất</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayedRows.map((row) => (
+                <tr key={row.stt}>
+                  <td style={{ textAlign: 'center', fontWeight: 700 }}>{row.stt}</td>
+                  <td>{row.province_name}</td>
+                  <td style={{ textAlign: 'right' }}>{row.total_submissions}</td>
+                  <td style={{ textAlign: 'right' }}>{row.failed_submissions}</td>
+                  <td style={{ textAlign: 'right' }}>{row.passed_submissions}</td>
+                  <td style={{ textAlign: 'right' }}>{formatRate(row.pass_rate)}</td>
+                  <td>{row.top_ward_name || 'Chưa có'}</td>
+                  <td>{row.top_school_name || 'Chưa có'}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="vb-account-table-total">
+                <th colSpan={2}>Tổng cộng</th>
+                <th style={{ textAlign: 'right' }}>{totalsRow.total_submissions}</th>
+                <th style={{ textAlign: 'right' }}>{totalsRow.failed_submissions}</th>
+                <th style={{ textAlign: 'right' }}>{totalsRow.passed_submissions}</th>
+                <th style={{ textAlign: 'right' }}>
+                  {totalsRow.total_submissions > 0 ? formatRate((totalsRow.passed_submissions / totalsRow.total_submissions) * 100) : '0.0%'}
+                </th>
+                <th colSpan={2}>-</th>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </section>
     </main>
