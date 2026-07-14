@@ -129,6 +129,43 @@ function createSchoolGroup() {
     };
 }
 
+const SCHOOL_COUNTS = {
+    1: 237,
+    4: 40,
+    8: 93,
+    11: 37,
+    12: 31,
+    14: 57,
+    15: 84,
+    19: 62,
+    20: 48,
+    22: 54,
+    24: 12,
+    25: 161,
+    31: 134,
+    33: 85,
+    37: 130,
+    38: 81,
+    40: 12,
+    42: 49,
+    44: 78,
+    46: 39,
+    48: 87,
+    51: 80,
+    52: 86,
+    56: 67,
+    66: 118,
+    68: 115,
+    75: 118,
+    79: 267,
+    80: 83,
+    82: 92,
+    86: 133,
+    91: 121,
+    92: 105,
+    96: 63,
+};
+
 class ExportController {
     static parseUtcTimestamp(value) {
         if (!value) return 0;
@@ -665,6 +702,7 @@ class ExportController {
                 return {
                     stt: 0,
                     province_name: province.name,
+                    school_count: SCHOOL_COUNTS[province.code] || 0,
                     total_submissions: group?.total_submissions || 0,
                     failed_submissions: group?.failed_submissions || 0,
                     passed_submissions: group?.passed_submissions || 0,
@@ -676,12 +714,13 @@ class ExportController {
 
             const totalsRow = provinceStats.reduce(
                 (acc, row) => {
+                    acc.school_count += row.school_count;
                     acc.total_submissions += row.total_submissions;
                     acc.failed_submissions += row.failed_submissions;
                     acc.passed_submissions += row.passed_submissions;
                     return acc;
                 },
-                { total_submissions: 0, failed_submissions: 0, passed_submissions: 0 }
+                { school_count: 0, total_submissions: 0, failed_submissions: 0, passed_submissions: 0 }
             );
 
             const rowsForExport = [
@@ -692,6 +731,7 @@ class ExportController {
                 {
                     stt: "Tổng cộng",
                     province_name: "",
+                    school_count: totalsRow.school_count,
                     total_submissions: totalsRow.total_submissions,
                     failed_submissions: totalsRow.failed_submissions,
                     passed_submissions: totalsRow.passed_submissions,
@@ -710,7 +750,8 @@ class ExportController {
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
-                        { header: "Tỉnh/Thành phố", key: "province_name", width: 24 },
+                        { header: "Đơn vị", key: "province_name", width: 24 },
+                        { header: "Tổng số đoàn trường", key: "school_count", width: 18 },
                         { header: "Tổng bài dự thi", key: "total_submissions", width: 16 },
                         { header: "Số bài không đạt", key: "failed_submissions", width: 16 },
                         { header: "Số bài đạt", key: "passed_submissions", width: 14 },

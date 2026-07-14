@@ -1,38 +1,49 @@
+function normalizeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0111\u0110]/g, "d")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const FALLBACK_PROVINCES = [
-  { name: "Cao Bằng" },
-  { name: "Lạng Sơn" },
-  { name: "Phú Thọ" },
-  { name: "Quảng Ninh" },
-  { name: "Thái Nguyên" },
-  { name: "Tuyên Quang" },
-  { name: "Lào Cai" },
-  { name: "Điện Biên" },
-  { name: "Lai Châu" },
-  { name: "Sơn La" },
-  { name: "Bắc Ninh" },
-  { name: "Hưng Yên" },
-  { name: "Ninh Bình" },
-  { name: "Hà Nội" },
-  { name: "Hải Phòng" },
-  { name: "Hà Tĩnh" },
-  { name: "Nghệ An" },
-  { name: "Quảng Trị" },
-  { name: "Thanh Hóa" },
-  { name: "Huế" },
-  { name: "Đắk Lắk" },
-  { name: "Gia Lai" },
-  { name: "Lâm Đồng" },
-  { name: "Khánh Hòa" },
-  { name: "Quảng Ngãi" },
-  { name: "Đà Nẵng" },
-  { name: "Đồng Nai" },
-  { name: "Tây Ninh" },
-  { name: "TP. Hồ Chí Minh" },
-  { name: "An Giang" },
-  { name: "Cà Mau" },
-  { name: "Đồng Tháp" },
-  { name: "Vĩnh Long" },
-  { name: "Cần Thơ" },
+  { code: 4, name: "Cao Bằng" },
+  { code: 20, name: "Lạng Sơn" },
+  { code: 25, name: "Phú Thọ" },
+  { code: 22, name: "Quảng Ninh" },
+  { code: 19, name: "Thái Nguyên" },
+  { code: 8, name: "Tuyên Quang" },
+  { code: 15, name: "Lào Cai" },
+  { code: 11, name: "Điện Biên" },
+  { code: 12, name: "Lai Châu" },
+  { code: 14, name: "Sơn La" },
+  { code: 24, name: "Bắc Ninh" },
+  { code: 33, name: "Hưng Yên" },
+  { code: 37, name: "Ninh Bình" },
+  { code: 1, name: "Hà Nội" },
+  { code: 31, name: "Hải Phòng" },
+  { code: 42, name: "Hà Tĩnh" },
+  { code: 40, name: "Nghệ An" },
+  { code: 44, name: "Quảng Trị" },
+  { code: 38, name: "Thanh Hóa" },
+  { code: 46, name: "Huế" },
+  { code: 66, name: "Đắk Lắk" },
+  { code: 52, name: "Gia Lai" },
+  { code: 68, name: "Lâm Đồng" },
+  { code: 56, name: "Khánh Hòa" },
+  { code: 51, name: "Quảng Ngãi" },
+  { code: 48, name: "Đà Nẵng" },
+  { code: 75, name: "Đồng Nai" },
+  { code: 80, name: "Tây Ninh" },
+  { code: 79, name: "TP. Hồ Chí Minh" },
+  { code: 91, name: "An Giang" },
+  { code: 96, name: "Cà Mau" },
+  { code: 82, name: "Đồng Tháp" },
+  { code: 86, name: "Vĩnh Long" },
+  { code: 92, name: "Cần Thơ" },
 ];
 
 async function fetchProvinceList() {
@@ -53,8 +64,8 @@ async function fetchProvinceList() {
     // Ignore and fall back to the bundled list below.
   }
 
-  return FALLBACK_PROVINCES.map((province, index) => ({
-    code: index + 1,
+  return FALLBACK_PROVINCES.map((province) => ({
+    code: province.code,
     name: province.name,
   }));
 }
@@ -62,4 +73,5 @@ async function fetchProvinceList() {
 module.exports = {
   fetchProvinceList,
   FALLBACK_PROVINCES,
+  normalizeText,
 };
