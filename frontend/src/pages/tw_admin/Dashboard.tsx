@@ -14,10 +14,13 @@ type ProvinceApiItem = {
 type ProvinceStatRow = {
   province_key: string
   province_name: string
+  school_count: number
+  participating_school_count: number
   total_submissions: number
   failed_submissions: number
   passed_submissions: number
   pass_rate: number
+  participation_rate: number
   top_ward_name: string | null
   top_school_name: string | null
 }
@@ -26,10 +29,12 @@ type ProvinceDisplayRow = {
   stt: number
   province_name: string
   school_count: number
+  participating_school_count: number
   total_submissions: number
   failed_submissions: number
   passed_submissions: number
   pass_rate: number
+  participation_rate: number
   top_ward_name: string | null
   top_school_name: string | null
 }
@@ -173,10 +178,15 @@ export default function TwAdminDashboard() {
         stt: index + 1,
         province_name: province.name,
         school_count: SCHOOL_COUNTS[province.code] ?? 0,
+        participating_school_count: stat?.participating_school_count ?? 0,
         total_submissions: stat?.total_submissions ?? 0,
         failed_submissions: stat?.failed_submissions ?? 0,
         passed_submissions: stat?.passed_submissions ?? 0,
         pass_rate: stat?.pass_rate ?? 0,
+        participation_rate:
+          (SCHOOL_COUNTS[province.code] ?? 0) > 0
+            ? (((stat?.participating_school_count ?? 0) / (SCHOOL_COUNTS[province.code] ?? 0)) * 100)
+            : 0,
         top_ward_name: stat?.top_ward_name ?? null,
         top_school_name: stat?.top_school_name ?? null,
       } satisfies ProvinceDisplayRow
@@ -187,6 +197,7 @@ export default function TwAdminDashboard() {
     return displayedRows.reduce(
       (acc, row) => {
         acc.school_count += row.school_count
+        acc.participating_school_count += row.participating_school_count
         acc.total_submissions += row.total_submissions
         acc.failed_submissions += row.failed_submissions
         acc.passed_submissions += row.passed_submissions
@@ -194,6 +205,7 @@ export default function TwAdminDashboard() {
       },
       {
         school_count: 0,
+        participating_school_count: 0,
         total_submissions: 0,
         failed_submissions: 0,
         passed_submissions: 0,
@@ -201,9 +213,11 @@ export default function TwAdminDashboard() {
     )
   }, [displayedRows])
 
-  const schoolCountTotal = useMemo(() => {
-    return displayedRows.reduce((sum, row) => sum + row.school_count, 0)
-  }, [displayedRows])
+  const participationRateTotal = useMemo(() => {
+    return totalsRow.school_count > 0
+      ? (totalsRow.participating_school_count / totalsRow.school_count) * 100
+      : 0
+  }, [totalsRow.participating_school_count, totalsRow.school_count])
 
   async function handleExportProvinceStats() {
     try {
@@ -300,11 +314,13 @@ export default function TwAdminDashboard() {
               <tr>
                 <th style={{ width: 72 }}>STT</th>
                 <th>Đơn vị</th>
-                <th>Tổng số đoàn trường</th>
                 <th>Tổng bài dự thi</th>
                 <th>Số bài không đạt</th>
                 <th>Số bài đạt</th>
                 <th>Tỷ lệ đạt điều kiện</th>
+                <th>Tổng số đoàn trường</th>
+                <th>Số đoàn trường tham gia</th>
+                <th>Tỷ lệ tham gia</th>
                 <th>Xã/phường nhiều bài dự thi nhất</th>
                 <th>Trường nhiều bài dự thi nhất</th>
               </tr>
@@ -314,11 +330,13 @@ export default function TwAdminDashboard() {
                 <tr key={row.stt}>
                   <td style={{ fontWeight: 700 }}>{row.stt}</td>
                   <td>{row.province_name}</td>
-                  <td>{row.school_count}</td>
                   <td>{row.total_submissions}</td>
                   <td>{row.failed_submissions}</td>
                   <td>{row.passed_submissions}</td>
                   <td>{formatRate(row.pass_rate)}</td>
+                  <td>{row.school_count}</td>
+                  <td>{row.participating_school_count}</td>
+                  <td>{formatRate(row.participation_rate)}</td>
                   <td>{row.top_ward_name || 'Chưa có'}</td>
                   <td>{row.top_school_name || 'Chưa có'}</td>
                 </tr>
@@ -327,13 +345,15 @@ export default function TwAdminDashboard() {
             <tfoot>
               <tr className="vb-account-table-total">
                 <th colSpan={2}>Tổng cộng</th>
-                <th>{schoolCountTotal}</th>
                 <th>{totalsRow.total_submissions}</th>
                 <th>{totalsRow.failed_submissions}</th>
                 <th>{totalsRow.passed_submissions}</th>
                 <th>
                   {totalsRow.total_submissions > 0 ? formatRate((totalsRow.passed_submissions / totalsRow.total_submissions) * 100) : '0.0%'}
                 </th>
+                <th>{totalsRow.school_count}</th>
+                <th>{totalsRow.participating_school_count}</th>
+                <th>{formatRate(participationRateTotal)}</th>
                 <th colSpan={2}>-</th>
               </tr>
             </tfoot>

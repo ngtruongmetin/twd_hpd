@@ -679,6 +679,8 @@ class ExportController {
                 const passRate = group?.total_submissions > 0
                     ? (group.passed_submissions / group.total_submissions) * 100
                     : 0;
+                const schoolCount = SCHOOL_COUNTS[province.code] || 0;
+                const participatingSchoolCount = group ? group.school_groups.size : 0;
 
                 let topSchoolName = null;
                 let topSchoolCount = -1;
@@ -702,11 +704,13 @@ class ExportController {
                 return {
                     stt: 0,
                     province_name: province.name,
-                    school_count: SCHOOL_COUNTS[province.code] || 0,
+                    school_count: schoolCount,
+                    participating_school_count: participatingSchoolCount,
                     total_submissions: group?.total_submissions || 0,
                     failed_submissions: group?.failed_submissions || 0,
                     passed_submissions: group?.passed_submissions || 0,
                     pass_rate: Number(passRate.toFixed(1)),
+                    participation_rate: Number(((schoolCount > 0 ? (participatingSchoolCount / schoolCount) * 100 : 0)).toFixed(1)),
                     top_ward_name: group ? getDisplayLabelFromCounts(group.ward_counts, "-") : "-",
                     top_school_name: topSchoolName || "-",
                 };
@@ -715,12 +719,13 @@ class ExportController {
             const totalsRow = provinceStats.reduce(
                 (acc, row) => {
                     acc.school_count += row.school_count;
+                    acc.participating_school_count += row.participating_school_count;
                     acc.total_submissions += row.total_submissions;
                     acc.failed_submissions += row.failed_submissions;
                     acc.passed_submissions += row.passed_submissions;
                     return acc;
                 },
-                { school_count: 0, total_submissions: 0, failed_submissions: 0, passed_submissions: 0 }
+                { school_count: 0, participating_school_count: 0, total_submissions: 0, failed_submissions: 0, passed_submissions: 0 }
             );
 
             const rowsForExport = [
@@ -732,11 +737,15 @@ class ExportController {
                     stt: "Tổng cộng",
                     province_name: "",
                     school_count: totalsRow.school_count,
+                    participating_school_count: totalsRow.participating_school_count,
                     total_submissions: totalsRow.total_submissions,
                     failed_submissions: totalsRow.failed_submissions,
                     passed_submissions: totalsRow.passed_submissions,
                     pass_rate: totalsRow.total_submissions > 0
                         ? Number(((totalsRow.passed_submissions / totalsRow.total_submissions) * 100).toFixed(1))
+                        : 0,
+                    participation_rate: totalsRow.school_count > 0
+                        ? Number(((totalsRow.participating_school_count / totalsRow.school_count) * 100).toFixed(1))
                         : 0,
                     top_ward_name: "-",
                     top_school_name: "-",
@@ -751,11 +760,13 @@ class ExportController {
                     columns: [
                         { header: "STT", key: "stt", width: 10 },
                         { header: "Đơn vị", key: "province_name", width: 24 },
-                        { header: "Tổng số đoàn trường", key: "school_count", width: 18 },
                         { header: "Tổng bài dự thi", key: "total_submissions", width: 16 },
                         { header: "Số bài không đạt", key: "failed_submissions", width: 16 },
                         { header: "Số bài đạt", key: "passed_submissions", width: 14 },
                         { header: "Tỷ lệ đạt điều kiện", key: "pass_rate", width: 18 },
+                        { header: "Tổng số đoàn trường", key: "school_count", width: 18 },
+                        { header: "Số đoàn trường tham gia", key: "participating_school_count", width: 20 },
+                        { header: "Tỷ lệ tham gia", key: "participation_rate", width: 16 },
                         { header: "Xã/Phường nhiều bài dự thi nhất", key: "top_ward_name", width: 28 },
                         { header: "Trường nhiều bài dự thi nhất", key: "top_school_name", width: 30 },
                     ],

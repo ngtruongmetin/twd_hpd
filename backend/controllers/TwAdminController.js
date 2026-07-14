@@ -1,4 +1,5 @@
 const db = require("../utils/db");
+const { FALLBACK_PROVINCES } = require("../utils/provinces");
 
 function dbAll(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -32,6 +33,47 @@ function normalizeProvinceKey(value) {
 
   return text;
 }
+
+const SCHOOL_COUNTS = {
+  1: 237,
+  4: 40,
+  8: 93,
+  11: 37,
+  12: 31,
+  14: 57,
+  15: 84,
+  19: 62,
+  20: 48,
+  22: 54,
+  24: 12,
+  25: 161,
+  31: 134,
+  33: 85,
+  37: 130,
+  38: 81,
+  40: 12,
+  42: 49,
+  44: 78,
+  46: 39,
+  48: 87,
+  51: 80,
+  52: 86,
+  56: 67,
+  66: 118,
+  68: 115,
+  75: 118,
+  79: 267,
+  80: 83,
+  82: 92,
+  86: 133,
+  91: 121,
+  92: 105,
+  96: 63,
+};
+
+const PROVINCE_CODE_BY_KEY = new Map(
+  FALLBACK_PROVINCES.map((province) => [normalizeProvinceKey(province.name), province.code])
+);
 
 const SCHOOL_PREFIXES = [
   "trường trung học phổ thông",
@@ -205,6 +247,12 @@ class TwAdminController {
           const passRate = group.total_submissions > 0
             ? (group.passed_submissions / group.total_submissions) * 100
             : 0;
+          const provinceCode = PROVINCE_CODE_BY_KEY.get(group.province_key);
+          const schoolCount = provinceCode ? SCHOOL_COUNTS[provinceCode] || 0 : 0;
+          const participatingSchoolCount = group.school_groups.size;
+          const participationRate = schoolCount > 0
+            ? (participatingSchoolCount / schoolCount) * 100
+            : 0;
 
           let topSchoolName = null;
           let topSchoolCount = -1;
@@ -226,10 +274,13 @@ class TwAdminController {
           return {
             province_key: group.province_key,
             province_name: getDisplayLabelFromCounts(group.province_name_counts, group.province_key),
+            school_count: schoolCount,
+            participating_school_count: participatingSchoolCount,
             total_submissions: group.total_submissions,
             failed_submissions: group.failed_submissions,
             passed_submissions: group.passed_submissions,
             pass_rate: Number(passRate.toFixed(1)),
+            participation_rate: Number(participationRate.toFixed(1)),
             top_ward_name: getDisplayLabelFromCounts(group.ward_counts, null),
             top_school_name: topSchoolName,
           };
