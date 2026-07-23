@@ -376,13 +376,18 @@
   padding: 24px 32px 32px;
 }
 
-.vb-lookup-form-grid {
+.vb-lookup-form-grid,
+.vb-lookup-search-row {
   display: grid;
   gap: 14px;
 }
 
 .vb-lookup-form-grid .vb-field {
   margin-bottom: 0;
+}
+
+.vb-lookup-search-row {
+  max-width: 640px;
 }
 
 .vb-lookup-hint {
@@ -435,43 +440,32 @@
   text-align: right;
 }
 
-.vb-lookup-table-wrap {
-  overflow-x: auto;
-}
-
-.vb-lookup-table {
-  width: 100%;
-  min-width: 1280px;
-  border-collapse: collapse;
-}
-
-.vb-lookup-table th,
-.vb-lookup-table td {
-  padding: 14px 16px;
+.vb-lookup-results-filters {
+  padding: 18px 24px 20px;
   border-bottom: 1px solid #e5e5e5;
-  vertical-align: top;
-  text-align: left;
-  font-size: 14px;
-  line-height: 1.6;
+  background: #fcfcfd;
 }
 
-.vb-lookup-table th {
-  background: #f8fafc;
-  color: #0a2a5b;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.vb-lookup-results .vb-account-table-wrap {
+  max-height: none;
+  overflow-x: auto;
+  border: 0;
+  border-radius: 0;
 }
 
-.vb-lookup-table a {
-  color: #0a2a5b;
-  font-weight: 700;
-  text-decoration: none;
+.vb-lookup-results .vb-account-table {
+  min-width: 1320px;
 }
 
-.vb-lookup-table a:hover {
-  text-decoration: none;
+.vb-lookup-results .vb-account-table tbody tr {
+  cursor: default;
+}
+
+.vb-lookup-highlight {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: #fde68a;
+  color: inherit;
 }
 
 .vb-lookup-mobile-list {
@@ -756,7 +750,11 @@
     padding: 20px 20px 12px;
   }
 
-  .vb-lookup-table-wrap {
+  .vb-lookup-results-filters {
+    padding: 16px 20px 18px;
+  }
+
+  .vb-lookup-desktop-table {
     display: none;
   }
 
