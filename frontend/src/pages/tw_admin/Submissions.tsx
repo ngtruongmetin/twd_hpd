@@ -4,6 +4,10 @@ import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 import { useAuth } from '../../context/useAuth'
 import VoteRankModal from '../../components/VoteRankModal'
+import ComplaintChatModal, {
+  type ComplaintSummary,
+} from '../../components/ComplaintChatModal'
+import { complaintStatusClass, complaintStatusLabel, type ComplaintStatus } from '../../components/complaintStatus'
 
 type SubmissionRow = {
   id: number
@@ -166,6 +170,7 @@ function getDefaultSortDirection(key: Exclude<SortKey, 'time'>): Exclude<SortDir
 export default function TwAdminSubmissions() {
   const { user } = useAuth()
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
+  const [complaintSummaries, setComplaintSummaries] = useState<Record<number, ComplaintSummary>>({})
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [results, setResults] = useState<ResultRow[]>([])
   const [query, setQuery] = useState('')
@@ -195,7 +200,9 @@ export default function TwAdminSubmissions() {
   const [provinceFilter, setProvinceFilter] = useState('ALL')
   const [facebookFilter, setFacebookFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [complaintStatusFilter, setComplaintStatusFilter] = useState('ALL')
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [complaintTarget, setComplaintTarget] = useState<SubmissionRow | null>(null)
   const [exporting, setExporting] = useState(false)
   const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
 
@@ -298,14 +305,20 @@ export default function TwAdminSubmissions() {
     setLoading(true)
     setError('')
     try {
-      const [submissionRes, tableRes, resultRes] = await Promise.all([
+      const [submissionRes, tableRes, resultRes, complaintRes] = await Promise.all([
         api.get('/api/v1/submissions'),
         api.get('/api/v1/competition_tables'),
         api.get('/api/v1/submission_results'),
+        api.get('/api/v1/complaints'),
       ])
       setSubmissions((submissionRes.data?.data ?? []) as SubmissionRow[])
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
       setResults((resultRes.data?.data ?? []) as ResultRow[])
+      const nextComplaintSummaries: Record<number, ComplaintSummary> = {}
+      ;(complaintRes.data?.data ?? []).forEach((summary: ComplaintSummary) => {
+        nextComplaintSummaries[summary.submission_id] = summary
+      })
+      setComplaintSummaries(nextComplaintSummaries)
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không tải được dữ liệu bài nộp.'))
     } finally {
@@ -359,8 +372,10 @@ export default function TwAdminSubmissions() {
       const statusOk =
         statusFilter === 'ALL' ||
         (statusFilter === 'PASS' ? row.is_failed === 0 : row.is_failed !== 0)
+      const complaintStatus = complaintSummaries[row.id]?.complaint_status || 'NOT_STARTED'
+      const complaintOk = complaintStatusFilter === 'ALL' || complaintStatus === complaintStatusFilter
 
-      return tableOk && provinceOk && facebookOk && statusOk
+      return tableOk && provinceOk && facebookOk && statusOk && complaintOk
     })
 
     const normalizedQuery = query.trim().toLowerCase()
@@ -372,7 +387,7 @@ export default function TwAdminSubmissions() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalizedQuery))
     })
-  }, [submissions, tableFilter, provinceFilter, facebookFilter, statusFilter, query, tableNameById])
+  }, [submissions, tableFilter, provinceFilter, facebookFilter, statusFilter, complaintStatusFilter, complaintSummaries, query, tableNameById])
 
   const displayedRows = useMemo(() => {
     if (sortState.direction === 'time' || sortState.key === 'time') return filteredRows
@@ -504,7 +519,7 @@ export default function TwAdminSubmissions() {
 
   useEffect(() => {
     setPage(1)
-  }, [tableFilter, provinceFilter, facebookFilter, statusFilter, query, sortState.direction, sortState.key])
+  }, [tableFilter, provinceFilter, facebookFilter, statusFilter, complaintStatusFilter, query, sortState.direction, sortState.key])
 
   const kpiStats = useMemo(() => {
     const regionSet = new Set<string>()
@@ -538,6 +553,25 @@ export default function TwAdminSubmissions() {
     } finally {
       setDeletingId(null)
     }
+  }
+
+  function handleComplaintStatusChange(submissionId: number, status: ComplaintStatus) {
+    setComplaintSummaries((current) => ({
+      ...current,
+      [submissionId]: {
+        ...(current[submissionId] || {
+          submission_id: submissionId,
+          message_count: 0,
+          last_message_at: null,
+          last_sender_user_id: null,
+          last_sender_full_name: null,
+          last_sender_username: null,
+          last_sender_role: null,
+          last_sender_role_name: null,
+        }),
+        complaint_status: status,
+      },
+    }))
   }
 
   function openPublishDialog(submission: SubmissionRow) {
@@ -719,7 +753,7 @@ export default function TwAdminSubmissions() {
 
         {renderPagination('top')}
 
-        <div className="vb-tw-toolbar-row">
+        <div className="vb-tw-toolbar-row vb-tw-submission-toolbar">
           <div className="vb-account-search">
             <label htmlFor="tw-submission-search">Tìm kiếm</label>
             <input
@@ -791,6 +825,20 @@ export default function TwAdminSubmissions() {
                 <option value="FAIL">Chưa đạt yêu cầu</option>
               </select>
             </div>
+            <div>
+              <label htmlFor="tw-complaint-status-filter">Trạng thái khiếu nại</label>
+              <select
+                id="tw-complaint-status-filter"
+                className="vb-select"
+                value={complaintStatusFilter}
+                onChange={(e) => setComplaintStatusFilter(e.target.value)}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="NOT_STARTED">Chưa khiếu nại</option>
+                <option value="PENDING">Chưa xử lý</option>
+                <option value="RESPONDED">Đã phản hồi</option>
+              </select>
+            </div>
           </div>
 
           <div className="vb-tw-toolbar-cta">
@@ -858,6 +906,7 @@ export default function TwAdminSubmissions() {
                     <span>{getSortIcon('status')}</span>
                   </button>
                 </th>
+                <th>Khiếu nại điểm</th>
                 <th>
                   <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('submittedAt')}>
                     Thời gian nộp
@@ -870,6 +919,7 @@ export default function TwAdminSubmissions() {
             <tbody>
               {pagedRows.map((row) => {
                 const result = resultBySubmissionId.get(row.id)
+                const complaintStatus = complaintSummaries[row.id]?.complaint_status || 'NOT_STARTED'
                 return (
                   <tr key={row.id}>
                     <td>{tableNameById.get(row.competition_table_id || 0) || 'N/A'}</td>
@@ -910,9 +960,21 @@ export default function TwAdminSubmissions() {
                         </label>
                       </div>
                     </td>
+                    <td>
+                      <span className={`vb-status-pill ${complaintStatusClass(complaintStatus)}`}>
+                        {complaintStatusLabel(complaintStatus)}
+                      </span>
+                    </td>
                     <td>{formatSubmittedAt(row.submitted_at)}</td>
                     <td>
                       <div className="vb-tw-row-actions">
+                        <button
+                          type="button"
+                          className="vb-tw-btn-muted"
+                          onClick={() => setComplaintTarget(row)}
+                        >
+                          {complaintStatus === 'NOT_STARTED' ? 'Chưa có khiếu nại' : 'Phản hồi khiếu nại'}
+                        </button>
                         {canAssignVoteRank ? (
                           <button
                             type="button"
@@ -988,6 +1050,17 @@ export default function TwAdminSubmissions() {
               </form>
             </section>
           </div>
+        ) : null}
+
+        {complaintTarget ? (
+          <ComplaintChatModal
+            submissionId={complaintTarget.id}
+            submissionTitle={complaintTarget.title}
+            currentUserId={user?.id}
+            currentUserRole={user?.role_code}
+            onClose={() => setComplaintTarget(null)}
+            onStatusChange={handleComplaintStatusChange}
+          />
         ) : null}
 
         <VoteRankModal

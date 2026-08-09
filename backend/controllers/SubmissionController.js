@@ -1302,6 +1302,14 @@ class SubmissionController {
                 });
             }
 
+            await dbRun(
+                `DELETE FROM vote_complaint_messages
+                 WHERE thread_id IN (
+                     SELECT id FROM vote_complaint_threads WHERE submission_id = ?
+                 )`,
+                [req.params.id],
+            );
+            await dbRun("DELETE FROM vote_complaint_threads WHERE submission_id = ?", [req.params.id]);
             const result = await dbRun("DELETE FROM submissions WHERE id = ?", [req.params.id]);
 
             if (result.changes === 0) {

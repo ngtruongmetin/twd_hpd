@@ -5,6 +5,10 @@ import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 import { getDashboardTitleForRole } from '../../auth/role'
 import { useAuth } from '../../context/useAuth'
+import ComplaintChatModal, {
+    type ComplaintSummary,
+} from '../../components/ComplaintChatModal'
+import { complaintStatusClass, complaintStatusLabel, type ComplaintStatus } from '../../components/complaintStatus'
 
 type SeasonRow = {
     id: number
@@ -155,6 +159,7 @@ export default function ContestantSubmissions() {
     const [seasons, setSeasons] = useState<SeasonRow[]>([])
     const [competitionTables, setCompetitionTables] = useState<CompetitionTableRow[]>([])
     const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
+    const [complaintSummaries, setComplaintSummaries] = useState<Record<number, ComplaintSummary>>({})
     const [form, setForm] = useState<SubmissionForm>(initialForm)
     const [driveValidation, setDriveValidation] = useState<DriveValidation | null>(null)
     const [driveChecking, setDriveChecking] = useState(false)
@@ -163,6 +168,7 @@ export default function ContestantSubmissions() {
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
     const [deletingId, setDeletingId] = useState<number | null>(null)
+    const [complaintTarget, setComplaintTarget] = useState<SubmissionRow | null>(null)
     const successTimerRef = useRef<number | null>(null)
 
     const selectedSeason = useMemo(
@@ -200,10 +206,11 @@ export default function ContestantSubmissions() {
         setError('')
 
         try {
-            const [seasonResponse, competitionResponse, submissionResponse] = await Promise.all([
+            const [seasonResponse, competitionResponse, submissionResponse, complaintResponse] = await Promise.all([
                 api.get('/api/v1/seasons'),
                 api.get('/api/v1/competition_tables'),
                 api.get('/api/v1/submissions'),
+                api.get('/api/v1/complaints'),
             ])
 
             const seasonRows = (seasonResponse.data?.data ?? []) as SeasonRow[]
@@ -213,6 +220,11 @@ export default function ContestantSubmissions() {
             setSeasons(seasonRows)
             setCompetitionTables(competitionRows)
             setSubmissions(submissionRows)
+            const nextComplaintSummaries: Record<number, ComplaintSummary> = {}
+            ;(complaintResponse.data?.data ?? []).forEach((summary: ComplaintSummary) => {
+                nextComplaintSummaries[summary.submission_id] = summary
+            })
+            setComplaintSummaries(nextComplaintSummaries)
 
             const defaultSeason = seasonRows[0] || null
             const defaultCompetition = defaultSeason
@@ -403,6 +415,26 @@ export default function ContestantSubmissions() {
             setDeletingId(null)
         }
     }
+
+    function handleComplaintStatusChange(submissionId: number, status: ComplaintStatus) {
+        setComplaintSummaries((current) => ({
+            ...current,
+            [submissionId]: {
+                ...(current[submissionId] || {
+                    submission_id: submissionId,
+                    message_count: 0,
+                    last_message_at: null,
+                    last_sender_user_id: null,
+                    last_sender_full_name: null,
+                    last_sender_username: null,
+                    last_sender_role: null,
+                    last_sender_role_name: null,
+                }),
+                complaint_status: status,
+            },
+        }))
+    }
+
     return (
         <main className="vb-page vb-dashboard-page vb-contestant-page">
             <Navbar />
@@ -614,6 +646,7 @@ export default function ContestantSubmissions() {
                                         <th>Bài đăng Facebook</th>
                                         <th>Trạng thái</th>
                                         <th>Lý do không đạt</th>
+                                        <th>Khiếu nại điểm</th>
                                         <th>Thời gian nộp</th>
                                         <th>Hành động</th>
                                     </tr>
@@ -622,6 +655,7 @@ export default function ContestantSubmissions() {
                                     {mySubmissions.length > 0 ? (
                                         mySubmissions.map((submission) => {
                                             const statusLabel = getStatusLabel(submission)
+                                            const complaintStatus = complaintSummaries[submission.id]?.complaint_status || 'NOT_STARTED'
 
                                             return (
                                                 <tr key={submission.id}>
@@ -658,8 +692,20 @@ export default function ContestantSubmissions() {
                                                         </span>
                                                     </td>
                                                     <td>{submission.failed_reason || 'Không có'}</td>
+                                                    <td>
+                                                        <span className={`vb-status-pill ${complaintStatusClass(complaintStatus)}`}>
+                                                            {complaintStatusLabel(complaintStatus)}
+                                                        </span>
+                                                    </td>
                                                     <td>{formatDate(submission.submitted_at || submission.created_at)}</td>
                                                     <td>
+                                                        <button
+                                                            type="button"
+                                                            className="vb-tw-btn-primary"
+                                                            onClick={() => setComplaintTarget(submission)}
+                                                        >
+                                                            {complaintStatus === 'NOT_STARTED' ? 'Khiếu nại' : 'Xem khiếu nại'}
+                                                        </button>
                                                         <button
                                                             type="button"
                                                             className="vb-tw-btn-danger"
@@ -673,7 +719,7 @@ export default function ContestantSubmissions() {
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan={9} className="vb-contestant-empty">
+                                            <td colSpan={10} className="vb-contestant-empty">
                                                 Chưa có bài nào của bạn.
                                             </td>
                                         </tr>
@@ -684,6 +730,17 @@ export default function ContestantSubmissions() {
                     </article>
                 </aside>
             </section>
+
+            {complaintTarget ? (
+                <ComplaintChatModal
+                    submissionId={complaintTarget.id}
+                    submissionTitle={complaintTarget.title}
+                    currentUserId={user?.id}
+                    currentUserRole={user?.role_code}
+                    onClose={() => setComplaintTarget(null)}
+                    onStatusChange={handleComplaintStatusChange}
+                />
+            ) : null}
         </main>
     )
 }

@@ -162,9 +162,53 @@ function ensureSubmissionColumns() {
   });
 }
 
+function ensureComplaintTables() {
+  db.serialize(() => {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS vote_complaint_threads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        submission_id INTEGER NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
+      )
+    `, (threadErr) => {
+      if (threadErr) {
+        console.error("Failed to create vote_complaint_threads:", threadErr.message);
+      }
+    });
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS vote_complaint_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        thread_id INTEGER NOT NULL,
+        sender_user_id INTEGER NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (thread_id) REFERENCES vote_complaint_threads(id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_user_id) REFERENCES users(id)
+      )
+    `, (messageErr) => {
+      if (messageErr) {
+        console.error("Failed to create vote_complaint_messages:", messageErr.message);
+      }
+    });
+
+    db.run(`
+      CREATE INDEX IF NOT EXISTS idx_vote_complaint_messages_thread_id
+      ON vote_complaint_messages(thread_id)
+    `);
+    db.run(`
+      CREATE INDEX IF NOT EXISTS idx_vote_complaint_messages_sender_user_id
+      ON vote_complaint_messages(sender_user_id)
+    `);
+  });
+}
+
 ensureUserFacebookColumn();
 ensureUserAuthColumns();
 ensureSubmissionColumns();
+ensureComplaintTables();
 
 // Routes
 app.use("/api/v1/auth", require("./modules/auth/routes"));
@@ -188,6 +232,7 @@ app.use("/api/v1/export", require("./modules/export/routes"));
 app.use("/api/v1/landing", require("./modules/landing/routes"));
 app.use("/api/v1/public", require("./modules/public/routes"));
 app.use("/api/v1/password", require("./modules/password/routes"));
+app.use("/api/v1/complaints", require("./modules/complaints/routes"));
 app.use("/api/v1/province", require("./modules/province/routes"));
 app.use("/api/v1/tw_admin", require("./modules/tw_admin/routes"));
 app.use("/api/v1/tech_admin", require("./modules/tech_admin/routes"));

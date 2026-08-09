@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 import { useAuth } from '../../context/useAuth'
+import ComplaintChatModal, { type ComplaintSummary } from '../../components/ComplaintChatModal'
+import { type ComplaintStatus } from '../../components/complaintStatus'
 
 type SubmissionRow = {
   id: number
@@ -88,6 +90,7 @@ export default function JudgeSubmissions() {
   const { user } = useAuth()
   const judgeUserId = Number(user?.id || 0)
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
+  const [complaintSummaries, setComplaintSummaries] = useState<Record<number, ComplaintSummary>>({})
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [results, setResults] = useState<SubmissionResultRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -104,19 +107,26 @@ export default function JudgeSubmissions() {
   const [criteriaDrafts, setCriteriaDrafts] = useState<CriterionDraft[]>([])
   const [modalError, setModalError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<number, string>>({})
+  const [complaintTarget, setComplaintTarget] = useState<SubmissionRow | null>(null)
 
   async function loadData() {
     setLoading(true)
     setError('')
     try {
-      const [submissionRes, tableRes, resultsRes] = await Promise.all([
+      const [submissionRes, tableRes, resultsRes, complaintRes] = await Promise.all([
         api.get('/api/v1/submissions'),
         api.get('/api/v1/competition_tables'),
         api.get('/api/v1/submission_results'),
+        api.get('/api/v1/complaints'),
       ])
       setSubmissions((submissionRes.data?.data ?? []) as SubmissionRow[])
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
       setResults((resultsRes.data?.data ?? []) as SubmissionResultRow[])
+      const nextComplaintSummaries: Record<number, ComplaintSummary> = {}
+      ;(complaintRes.data?.data ?? []).forEach((summary: ComplaintSummary) => {
+        nextComplaintSummaries[summary.submission_id] = summary
+      })
+      setComplaintSummaries(nextComplaintSummaries)
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không tải được danh sách bài dự thi.'))
     } finally {
@@ -341,6 +351,25 @@ export default function JudgeSubmissions() {
     }
   }
 
+  function handleComplaintStatusChange(submissionId: number, status: ComplaintStatus) {
+    setComplaintSummaries((current) => ({
+      ...current,
+      [submissionId]: {
+        ...(current[submissionId] || {
+          submission_id: submissionId,
+          message_count: 0,
+          last_message_at: null,
+          last_sender_user_id: null,
+          last_sender_full_name: null,
+          last_sender_username: null,
+          last_sender_role: null,
+          last_sender_role_name: null,
+        }),
+        complaint_status: status,
+      },
+    }))
+  }
+
 
 
   return (
@@ -474,6 +503,15 @@ export default function JudgeSubmissions() {
                     <td>
                       <button
                         type="button"
+                        className="vb-tw-btn-muted"
+                        onClick={() => setComplaintTarget(row)}
+                      >
+                        {complaintSummaries[row.id]?.complaint_status === 'NOT_STARTED'
+                          ? 'Chưa có khiếu nại'
+                          : 'Phản hồi khiếu nại'}
+                      </button>
+                      <button
+                        type="button"
                         className="vb-tw-btn-primary"
                         onClick={() => void openScoreModal(row)}
                       >
@@ -507,6 +545,17 @@ export default function JudgeSubmissions() {
           </button>
         </div>
       </section>
+
+      {complaintTarget ? (
+        <ComplaintChatModal
+          submissionId={complaintTarget.id}
+          submissionTitle={complaintTarget.title}
+          currentUserId={user?.id}
+          currentUserRole={user?.role_code}
+          onClose={() => setComplaintTarget(null)}
+          onStatusChange={handleComplaintStatusChange}
+        />
+      ) : null}
 
       {modalOpen && selectedSubmission ? (
         <div className="vb-modal-backdrop" role="presentation" onClick={resetModalState}>
