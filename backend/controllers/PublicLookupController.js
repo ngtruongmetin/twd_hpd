@@ -282,6 +282,11 @@ class PublicLookupController {
                     s.author_province_name,
                     s.author_ward_name,
                     s.author_school_name,
+                    m.interaction_count,
+                    m.share_count,
+                    m.engagement_score,
+                    vr.rank_position AS vote_rank_position,
+                    COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
                     u.full_name AS user_full_name,
                     u.province_name AS user_province_name,
                     u.ward_name AS user_ward_name,
@@ -293,6 +298,9 @@ class PublicLookupController {
                 JOIN users u ON u.id = s.submitted_by_user_id
                 LEFT JOIN competition_tables ct ON ct.id = s.competition_table_id
                 LEFT JOIN seasons se ON se.id = s.season_id
+                LEFT JOIN submission_vote_metrics m ON m.submission_id = s.id
+                LEFT JOIN vote_rankings vr ON vr.submission_id = s.id
+                LEFT JOIN submission_results sr ON sr.submission_id = s.id
                 WHERE s.status <> 'DRAFT'
                 ORDER BY s.submitted_at DESC, s.id DESC
                 `
@@ -352,6 +360,11 @@ class PublicLookupController {
                     video_url: row.video_url || "",
                     facebook_post_url: row.fb_url || "",
                     has_facebook_post: hasFacebookPost,
+                    interaction_count: Number(row.interaction_count || 0),
+                    share_count: Number(row.share_count || 0),
+                    engagement_score: Number(row.engagement_score || 0),
+                    vote_rank_position: row.vote_rank_position == null ? null : Number(row.vote_rank_position),
+                    vote_converted_points: Number(row.vote_converted_points || 0),
                     status: statusMeta.displayStatus,
                     status_code: statusMeta.statusCode,
                     failed_reason: failedReason,

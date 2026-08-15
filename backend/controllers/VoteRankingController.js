@@ -64,14 +64,24 @@ class VoteRankingController {
             });
         }
 
-        if (!Number.isInteger(rankPosition) || rankPosition < 0 || rankPosition > 5) {
+        if (!Number.isInteger(rankPosition) || rankPosition < 0) {
             return res.status(400).json({
                 success: false,
                 message: "rankPosition chỉ được từ 1 đến 5",
             });
         }
 
-        const convertedPoints = convertedPointsByRank[rankPosition];
+        const convertedPoints = convertedPointsByRank[rankPosition] || 0;
+        const submission = await dbGet(
+            "SELECT id, season_id, competition_table_id, fb_url FROM submissions WHERE id = ?",
+            [submissionId]
+        );
+        if (!submission) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy bài thi" });
+        }
+        if (!String(submission.fb_url || "").trim()) {
+            return res.status(400).json({ success: false, message: "Bài thi phải có Facebook URL" });
+        }
         if (rankPosition === 0) {
             await dbRun(
                 "DELETE FROM vote_rankings WHERE submission_id = ?",

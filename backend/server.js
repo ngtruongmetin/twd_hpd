@@ -205,10 +205,26 @@ function ensureComplaintTables() {
   });
 }
 
+function ensureVoteMetricsTable() {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS submission_vote_metrics (
+      submission_id INTEGER PRIMARY KEY,
+      interaction_count INTEGER NOT NULL DEFAULT 0 CHECK (interaction_count >= 0),
+      share_count INTEGER NOT NULL DEFAULT 0 CHECK (share_count >= 0),
+      engagement_score INTEGER NOT NULL DEFAULT 0 CHECK (engagement_score >= 0),
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
+    )
+  `, (err) => {
+    if (err) console.error("Failed to create submission_vote_metrics:", err.message);
+  });
+}
+
 ensureUserFacebookColumn();
 ensureUserAuthColumns();
 ensureSubmissionColumns();
 ensureComplaintTables();
+ensureVoteMetricsTable();
 
 // Routes
 app.use("/api/v1/auth", require("./modules/auth/routes"));

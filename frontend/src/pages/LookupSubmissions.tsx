@@ -33,6 +33,11 @@ type LookupSubmission = {
   updated_at: string
   submitted_at_display: string
   match_reasons: MatchReason[]
+  interaction_count: number
+  share_count: number
+  engagement_score: number
+  vote_rank_position: number | null
+  vote_converted_points: number
 }
 
 type LookupResponse = {
@@ -428,6 +433,10 @@ export default function LookupSubmissions() {
                 <th>Trạng thái bài thi</th>
                 <th>Lý do không đạt</th>
                 <th>Thời gian nộp bài</th>
+                <th>Lượt tương tác</th>
+                <th>Lượt share</th>
+                <th>Hạng bình chọn</th>
+                <th>Điểm bình chọn</th>
               </tr>
             </thead>
             <tbody>
@@ -456,11 +465,15 @@ export default function LookupSubmissions() {
                     </td>
                     <td>{displayValue(row.failed_reason)}</td>
                     <td>{formatSubmissionTime(row.submitted_at_display, row.submitted_at)}</td>
+                    <td>{row.interaction_count}</td>
+                    <td>{row.share_count}</td>
+                    <td>{row.vote_rank_position ? (row.vote_rank_position <= 5 ? `Top ${row.vote_rank_position}` : `Hạng ${row.vote_rank_position}`) : 'Chưa xếp hạng'}</td>
+                    <td>{row.vote_converted_points}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={12} className="vb-lookup-empty">
+                  <td colSpan={16} className="vb-lookup-empty">
                     {emptyMessage}
                   </td>
                 </tr>
@@ -531,6 +544,10 @@ export default function LookupSubmissions() {
                     <dt>Thời gian nộp bài</dt>
                     <dd>{formatSubmissionTime(row.submitted_at_display, row.submitted_at)}</dd>
                   </div>
+                  <div><dt>Lượt tương tác</dt><dd>{row.interaction_count}</dd></div>
+                  <div><dt>Lượt share</dt><dd>{row.share_count}</dd></div>
+                  <div><dt>Hạng bình chọn</dt><dd>{row.vote_rank_position ? (row.vote_rank_position <= 5 ? `Top ${row.vote_rank_position}` : `Hạng ${row.vote_rank_position}`) : 'Chưa xếp hạng'}</dd></div>
+                  <div><dt>Điểm bình chọn</dt><dd>{row.vote_converted_points}</dd></div>
                 </dl>
               </article>
             ))

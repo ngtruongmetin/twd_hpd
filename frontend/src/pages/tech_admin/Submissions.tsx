@@ -11,6 +11,7 @@ type SubmissionRow = {
   competition_table_id: number | null
   video_url: string | null
   fb_url: string | null
+  vote_rank_position?: number | null
   author_full_name: string | null
   author_province_name: string | null
   author_ward_name: string | null
@@ -216,20 +217,8 @@ export default function TechAdminSubmissions() {
   }
 
   function openVoteRankDialog(submission: SubmissionRow) {
-    const result = resultBySubmissionId.get(submission.id)
-
-    const votePoints = Number(result?.vote_converted_points || 0)
-
-    let rank = ''
-
-    if (votePoints === 50) rank = '1'
-    else if (votePoints === 40) rank = '2'
-    else if (votePoints === 30) rank = '3'
-    else if (votePoints === 20) rank = '4'
-    else if (votePoints === 10) rank = '5'
-
     setVoteRankTarget(submission)
-    setVoteRankPosition(rank)
+    setVoteRankPosition(submission.vote_rank_position ? String(submission.vote_rank_position) : '')
     setVoteRankError('')
     setVoteRankSaving(false)
   }
@@ -246,7 +235,7 @@ export default function TechAdminSubmissions() {
     if (!voteRankTarget) return
 
     const rankPosition = Number(voteRankPosition)
-    if (!Number.isInteger(rankPosition) || rankPosition < 0 || rankPosition > 5) {
+    if (!Number.isInteger(rankPosition) || rankPosition < 0) {
       setVoteRankError('Vui lòng chọn thứ hạng từ Top 1 đến Top 5.')
       return
     }

@@ -60,7 +60,13 @@ function normalizeError(error: unknown, fallback: string) {
 
 function formatDate(value: string | null | undefined) {
   if (!value) return 'N/A'
-  const date = new Date(value)
+
+  // SQLite CURRENT_TIMESTAMP is UTC but is returned without a timezone marker.
+  // Mark that shape explicitly so browsers do not interpret it as local time.
+  const normalizedValue = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)
+    ? `${value.replace(' ', 'T')}Z`
+    : value
+  const date = new Date(normalizedValue)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('vi-VN', {
     timeZone: 'Asia/Ho_Chi_Minh',

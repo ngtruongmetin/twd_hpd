@@ -49,6 +49,11 @@ type SubmissionRow = {
     submitted_at?: string | null
     created_at: string | null
     updated_at?: string | null
+    interaction_count?: number | null
+    share_count?: number | null
+    engagement_score?: number | null
+    vote_rank_position?: number | null
+    vote_converted_points?: number | null
 }
 
 type SubmissionForm = {
@@ -649,6 +654,10 @@ export default function ContestantSubmissions() {
                                         <th>Khiếu nại điểm</th>
                                         <th>Thời gian nộp</th>
                                         <th>Hành động</th>
+                                        <th>Lượt tương tác</th>
+                                        <th>Lượt share</th>
+                                        <th>Hạng bình chọn</th>
+                                        <th>Điểm bình chọn</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -714,6 +723,10 @@ export default function ContestantSubmissions() {
                                                             {deletingId === submission.id ? 'Đang xóa...' : 'Xóa'}
                                                         </button>
                                                     </td>
+                                                    <td>{submission.interaction_count || 0}</td>
+                                                    <td>{submission.share_count || 0}</td>
+                                                    <td>{submission.vote_rank_position ? (submission.vote_rank_position <= 5 ? `Top ${submission.vote_rank_position}` : `Hạng ${submission.vote_rank_position}`) : 'Chưa xếp hạng'}</td>
+                                                    <td>{submission.vote_converted_points || 0}</td>
                                                 </tr>
                                             )
                                         })

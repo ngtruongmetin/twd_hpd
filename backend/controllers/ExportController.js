@@ -353,28 +353,31 @@ class ExportController {
 
         const { where, params } = ExportController.buildFilterQuery(filter, allowedFields);
         const query = `SELECT
-            id,
-            season_id,
-            competition_table_id,
-            submitted_by_user_id,
-            title,
-            description,
-            video_url,
-            note,
-            author_full_name,
-            author_province_name,
-            author_ward_name,
-            author_school_name,
-            other_members,
-            drive_file_id,
-            drive_is_public,
-            fb_url,
-            is_failed,
-            failed_reason,
-            status,
-            submitted_at,
-            updated_at
-        FROM submissions${where}`;
+            submissions.id,
+            submissions.season_id,
+            submissions.competition_table_id,
+            submissions.submitted_by_user_id,
+            submissions.title,
+            submissions.description,
+            submissions.video_url,
+            submissions.note,
+            submissions.author_full_name,
+            submissions.author_province_name,
+            submissions.author_ward_name,
+            submissions.author_school_name,
+            submissions.other_members,
+            submissions.drive_file_id,
+            submissions.drive_is_public,
+            submissions.fb_url,
+            submissions.is_failed,
+            submissions.failed_reason,
+            submissions.status,
+            submissions.submitted_at,
+            submissions.updated_at,
+            COALESCE(m.interaction_count, 0) AS interaction_count,
+            COALESCE(m.share_count, 0) AS share_count
+        FROM submissions
+        LEFT JOIN submission_vote_metrics m ON m.submission_id = submissions.id${where}`;
 
         db.all(query, params, (err, rows) => {
             if (err) {
@@ -419,6 +422,11 @@ class ExportController {
                     })),
                 },
             };
+
+            dataExport.matrix.columns.push(
+                { header: "Lượt tương tác", key: "interaction_count", width: 18 },
+                { header: "Lượt share", key: "share_count", width: 15 },
+            );
 
             DataModel.ExportData(dataExport, req, res);
         });
@@ -520,7 +528,7 @@ class ExportController {
                         { header: "Tác giả", key: "author_full_name", width: 25 },
                         { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
                         { header: "Điểm giám khảo", key: "judge_total_points", width: 18 },
-                        { header: "Điểm vote", key: "vote_converted_points", width: 18 },
+                        { header: "Điểm bình chọn", key: "vote_converted_points", width: 18 },
                         { header: "Tổng điểm", key: "final_points", width: 18 },
                         { header: "Ngày hoàn thiện", key: "finalized_at", width: 20 },
                     ],

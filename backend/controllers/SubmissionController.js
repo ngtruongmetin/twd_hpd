@@ -891,7 +891,18 @@ class SubmissionController {
     }
     static async getSubmissions(req, res) {
         try {
-            const rows = await dbAll("SELECT * FROM submissions ORDER BY id DESC");
+            const rows = await dbAll(`
+                SELECT s.*, COALESCE(m.interaction_count, 0) AS interaction_count,
+                       COALESCE(m.share_count, 0) AS share_count,
+                       COALESCE(m.engagement_score, 0) AS engagement_score,
+                       vr.rank_position AS vote_rank_position,
+                       COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
+                       COALESCE(sr.final_points, 0) AS final_points
+                FROM submissions s
+                LEFT JOIN submission_vote_metrics m ON m.submission_id = s.id
+                LEFT JOIN vote_rankings vr ON vr.submission_id = s.id
+                LEFT JOIN submission_results sr ON sr.submission_id = s.id
+                ORDER BY s.id DESC`);
             return res.status(200).json({
                 success: true,
                 message: "Lấy danh sách bài thi thành công",
@@ -907,7 +918,18 @@ class SubmissionController {
 
     static async getSubmissionById(req, res) {
         try {
-            const row = await dbGet("SELECT * FROM submissions WHERE id = ?", [req.params.id]);
+            const row = await dbGet(`
+                SELECT s.*, COALESCE(m.interaction_count, 0) AS interaction_count,
+                       COALESCE(m.share_count, 0) AS share_count,
+                       COALESCE(m.engagement_score, 0) AS engagement_score,
+                       vr.rank_position AS vote_rank_position,
+                       COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
+                       COALESCE(sr.final_points, 0) AS final_points
+                FROM submissions s
+                LEFT JOIN submission_vote_metrics m ON m.submission_id = s.id
+                LEFT JOIN vote_rankings vr ON vr.submission_id = s.id
+                LEFT JOIN submission_results sr ON sr.submission_id = s.id
+                WHERE s.id = ?`, [req.params.id]);
             if (!row) {
                 return res.status(404).json({
                     success: false,

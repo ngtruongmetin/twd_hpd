@@ -198,13 +198,21 @@ Table vote_rankings {
   submission_id bigint [not null, ref: > submissions.id]
 
   rank_position int [not null]
-  converted_points numeric(6,2) [not null] // Top1=50, Top2=40, Top3=30, Top4=20, Top5=10, còn lại=0
+  converted_points numeric(6,2) [not null] // Điểm bình chọn: Top1=50, Top2=40, Top3=30, Top4=20, Top5=10, còn lại=0
   calculated_at timestamptz [not null, default: `now()`]
 
   Indexes {
     (competition_table_id, submission_id) [unique]
     (competition_table_id, rank_position)
   }
+}
+
+Table submission_vote_metrics {
+  submission_id bigint [pk, ref: > submissions.id]
+  interaction_count int [not null, default: 0]
+  share_count int [not null, default: 0]
+  engagement_score int [not null, default: 0]
+  updated_at timestamptz [not null, default: `now()`]
 }
 
 Table submission_results {

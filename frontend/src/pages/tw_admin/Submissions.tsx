@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 import { useAuth } from '../../context/useAuth'
@@ -21,6 +21,11 @@ type SubmissionRow = {
   author_ward_name: string | null
   is_failed: number
   failed_reason: string | null
+  interaction_count?: number | null
+  share_count?: number | null
+  engagement_score?: number | null
+  vote_rank_position?: number | null
+  vote_converted_points?: number | null
 }
 
 type CompetitionTableRow = {
@@ -33,6 +38,24 @@ type ResultRow = {
   vote_converted_points: number | string
   judge_total_points: number | string
   final_points: number | string
+}
+
+type ImportTopRow = {
+  submission_id: number
+  rank_position: number
+  title: string
+  author_full_name: string | null
+  engagement_score: number
+  interaction_count: number
+  share_count: number
+  converted_points: number
+}
+
+type ImportRankingSummary = {
+  competition_table_id: number
+  competition_table_name: string
+  ranked_count: number
+  top5: ImportTopRow[]
 }
 
 type SortKey = 'time' | 'table' | 'author' | 'title' | 'submittedAt' | 'facebook' | 'vote' | 'judge' | 'total' | 'status'
@@ -204,6 +227,10 @@ export default function TwAdminSubmissions() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [complaintTarget, setComplaintTarget] = useState<SubmissionRow | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importErrors, setImportErrors] = useState<string[]>([])
+  const [importRankingSummaries, setImportRankingSummaries] = useState<ImportRankingSummary[] | null>(null)
+  const [voteDetailTarget, setVoteDetailTarget] = useState<SubmissionRow | null>(null)
   const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
 
   function cycleSort(key: Exclude<SortKey, 'time'>) {
@@ -588,20 +615,8 @@ export default function TwAdminSubmissions() {
     setPublishLoading(false)
   }
   function openVoteRankDialog(submission: SubmissionRow) {
-    const result = resultBySubmissionId.get(submission.id)
-
-    const votePoints = Number(result?.vote_converted_points || 0)
-
-    let rank = ''
-
-    if (votePoints === 50) rank = '1'
-    else if (votePoints === 40) rank = '2'
-    else if (votePoints === 30) rank = '3'
-    else if (votePoints === 20) rank = '4'
-    else if (votePoints === 10) rank = '5'
-
     setVoteRankTarget(submission)
-    setVoteRankPosition(rank)
+    setVoteRankPosition(submission.vote_rank_position ? String(submission.vote_rank_position) : '')
     setVoteRankError('')
     setVoteRankSaving(false)
   }
@@ -649,7 +664,7 @@ export default function TwAdminSubmissions() {
     if (!voteRankTarget) return
 
     const rankPosition = Number(voteRankPosition)
-    if (!Number.isInteger(rankPosition) || rankPosition < 0 || rankPosition > 5) {
+    if (!Number.isInteger(rankPosition) || rankPosition < 0) {
       setVoteRankError('Vui lòng chọn thứ hạng từ Top 1 đến Top 5.')
       return
     }
@@ -704,6 +719,31 @@ export default function TwAdminSubmissions() {
     }
   }
 
+  async function handleVoteImport(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setImporting(true)
+    setError('')
+    setMessage('')
+    setImportErrors([])
+    setImportRankingSummaries(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/api/v1/tw_admin/vote-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setMessage(response.data?.message || 'Đã nhập dữ liệu bình chọn.')
+      setImportRankingSummaries((response.data?.data?.ranking_summaries ?? []) as ImportRankingSummary[])
+      await loadData()
+    } catch (err: unknown) {
+      setError(normalizeError(err, 'Không nhập được file bình chọn.'))
+      const data = (err as { response?: { data?: { errors?: Array<{ sheet?: string; row?: number; id?: unknown; message?: string }> } } })?.response?.data
+      setImportErrors((data?.errors || []).map((item) => [item.sheet, item.row ? `dòng ${item.row}` : '', item.id != null ? `ID ${item.id}` : '', item.message || 'Lỗi'].filter(Boolean).join(' - ')))
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <main className="vb-page vb-dashboard-page vb-tw-submissions-page">
       <Navbar />
@@ -718,6 +758,7 @@ export default function TwAdminSubmissions() {
       </section>
 
       {error ? <section className="vb-account-banner is-error">{error}</section> : null}
+      {importErrors.length > 0 ? <section className="vb-account-banner is-error">{importErrors.join(' | ')}</section> : null}
       {message ? <section className="vb-account-banner">{message}</section> : null}
       {loading ? <section className="vb-account-banner">Đang tải dữ liệu...</section> : null}
 
@@ -842,6 +883,10 @@ export default function TwAdminSubmissions() {
           </div>
 
           <div className="vb-tw-toolbar-cta">
+            <label className="vb-tw-btn-muted" style={{ cursor: importing ? 'wait' : 'pointer' }}>
+              {importing ? 'Đang nhập...' : 'Nhập Excel bình chọn'}
+              <input type="file" accept=".xlsx,.xls" hidden disabled={importing} onChange={(event) => void handleVoteImport(event)} />
+            </label>
             <button
               type="button"
               className="vb-tw-btn-primary"
@@ -979,7 +1024,18 @@ export default function TwAdminSubmissions() {
                           <button
                             type="button"
                             className="vb-tw-btn-muted"
+                            onClick={() => setVoteDetailTarget(row)}
+                          >
+                            Chi tiết bình chọn
+                          </button>
+                        ) : null}
+                        {canAssignVoteRank ? (
+                          <button
+                            type="button"
+                            className="vb-tw-btn-muted"
                             onClick={() => openVoteRankDialog(row)}
+                            disabled={!row.fb_url}
+                            title={!row.fb_url ? 'Bài thi chưa có Facebook URL' : undefined}
                           >
                             Chấm điểm
                           </button>
@@ -1061,6 +1117,70 @@ export default function TwAdminSubmissions() {
             onClose={() => setComplaintTarget(null)}
             onStatusChange={handleComplaintStatusChange}
           />
+        ) : null}
+
+        {voteDetailTarget ? (
+          <div className="vb-modal-backdrop" role="presentation" onClick={() => setVoteDetailTarget(null)}>
+            <section className="vb-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              <div className="vb-modal-head">
+                <div>
+                  <p className="vb-overline">Chi tiết bình chọn</p>
+                  <h2>{voteDetailTarget.title}</h2>
+                </div>
+                <button type="button" className="vb-modal-close" onClick={() => setVoteDetailTarget(null)}>Đóng</button>
+              </div>
+              <dl className="vb-lookup-mobile-grid">
+                <div><dt>Lượt tương tác</dt><dd>{toNumber(voteDetailTarget.interaction_count)}</dd></div>
+                <div><dt>Lượt share</dt><dd>{toNumber(voteDetailTarget.share_count)}</dd></div>
+                <div><dt>Điểm tương tác</dt><dd>{toNumber(voteDetailTarget.engagement_score)}</dd></div>
+                <div><dt>Thứ hạng</dt><dd>{voteDetailTarget.vote_rank_position ? (voteDetailTarget.vote_rank_position <= 5 ? `Top ${voteDetailTarget.vote_rank_position}` : `Hạng ${voteDetailTarget.vote_rank_position}`) : 'Chưa xếp hạng'}</dd></div>
+                <div><dt>Điểm bình chọn</dt><dd>{toNumber(voteDetailTarget.vote_converted_points).toFixed(2)}</dd></div>
+              </dl>
+            </section>
+          </div>
+        ) : null}
+
+        {importRankingSummaries ? (
+          <div className="vb-modal-backdrop" role="presentation" onClick={() => setImportRankingSummaries(null)}>
+            <section className="vb-modal" role="dialog" aria-modal="true" aria-labelledby="vote-import-result-title" onClick={(event) => event.stopPropagation()}>
+              <div className="vb-modal-head">
+                <div>
+                  <p className="vb-overline">Kết quả nhập bình chọn</p>
+                  <h2 id="vote-import-result-title">Top 5 sau khi tính lại</h2>
+                  <p className="vb-modal-description">Mọi bài có Facebook URL đều đã được xếp hạng; Top 1–5 nhận lần lượt 50, 40, 30, 20, 10 điểm bình chọn.</p>
+                </div>
+                <button type="button" className="vb-modal-close" onClick={() => setImportRankingSummaries(null)}>Đóng</button>
+              </div>
+              <div className="vb-modal-body">
+                {importRankingSummaries.length > 0 ? importRankingSummaries.map((summary) => (
+                  <section key={summary.competition_table_id} className="vb-season-panel">
+                    <div className="vb-modal-head">
+                      <div>
+                        <h3>{summary.competition_table_name}</h3>
+                        <p className="vb-modal-description">{summary.ranked_count} bài có Facebook URL được xếp hạng</p>
+                      </div>
+                    </div>
+                    {summary.top5.length > 0 ? (
+                      <div className="vb-account-table-wrap">
+                        <table className="vb-account-table">
+                          <thead><tr><th>Hạng</th><th>Bài thi</th><th>Tác giả</th><th>Điểm tương tác</th><th>Điểm bình chọn</th></tr></thead>
+                          <tbody>{summary.top5.map((row) => (
+                            <tr key={row.submission_id}>
+                              <td>Top {row.rank_position}</td>
+                              <td>{row.title}</td>
+                              <td>{row.author_full_name || 'N/A'}</td>
+                              <td>{row.engagement_score}</td>
+                              <td>{row.converted_points}</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    ) : <p className="vb-modal-description">Chưa có bài thi nào có Facebook URL.</p>}
+                  </section>
+                )) : <p className="vb-modal-description">Không có bảng thi nào bị ảnh hưởng.</p>}
+              </div>
+            </section>
+          </div>
         ) : null}
 
         <VoteRankModal

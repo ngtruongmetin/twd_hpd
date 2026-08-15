@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap');
-
 :root {
   font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: #fafafa;
