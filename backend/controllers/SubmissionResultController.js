@@ -15,6 +15,31 @@ function dbRun(sql, params = []) {
   }));
 }
 
+let secretaryColumnsReady;
+async function ensureSecretaryColumns() {
+  if (secretaryColumnsReady) return secretaryColumnsReady;
+  secretaryColumnsReady = (async () => {
+    const rows = await dbAll("PRAGMA table_info(submission_results)");
+    if (!rows || rows.length === 0) {
+      throw new Error("Bảng submission_results chưa tồn tại");
+    }
+    const existing = new Set(rows.map((row) => row.name));
+    const columns = [
+      ["secretary_points", "REAL"],
+      ["secretary_reason", "TEXT"],
+      ["secretary_updated_at", "TEXT"],
+      ["secretary_updated_by_user_id", "INTEGER"],
+    ];
+    for (const [name, type] of columns) {
+      if (!existing.has(name)) await dbRun(`ALTER TABLE submission_results ADD COLUMN ${name} ${type}`);
+    }
+  })().catch((error) => {
+    secretaryColumnsReady = undefined;
+    throw error;
+  });
+  return secretaryColumnsReady;
+}
+
 function canSeeSecretary(user) {
   return ["TW_ADMIN", "JUDGE"].includes(user?.role_code);
 }
@@ -29,6 +54,7 @@ function selectColumns(includeSecretary) {
 class SubmissionResultController {
   static async getAll(req, res) {
     try {
+      await ensureSecretaryColumns();
       const rows = await dbAll(`SELECT ${selectColumns(canSeeSecretary(req.session?.user))} FROM submission_results ORDER BY id DESC`);
       return res.json({ success: true, data: rows });
     } catch (error) {
@@ -38,6 +64,7 @@ class SubmissionResultController {
 
   static async getById(req, res) {
     try {
+      await ensureSecretaryColumns();
       const row = await dbGet(`SELECT ${selectColumns(canSeeSecretary(req.session?.user))} FROM submission_results WHERE id = ?`, [req.params.id]);
       if (!row) return res.status(404).json({ success: false, message: "Không tìm thấy kết quả bài thi" });
       return res.json({ success: true, data: row });
@@ -48,6 +75,7 @@ class SubmissionResultController {
 
   static async updateSecretaryScore(req, res) {
     try {
+      await ensureSecretaryColumns();
       const submissionId = Number(req.params.submissionId);
       const rawPoints = req.body?.secretary_points ?? req.body?.points;
       const reason = String(req.body?.secretary_reason ?? req.body?.reason ?? "").trim();
