@@ -889,7 +889,47 @@ class SubmissionController {
             });
         }
     }
+    static async getJudgeSubmissions(req, res) {
+        try {
+            const page = Math.max(1, Number.parseInt(req.query?.page, 10) || 1);
+            const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query?.page_size, 10) || 10));
+            const params = [];
+            const where = ["TRIM(COALESCE(s.fb_url, '')) <> ''"];
+            if (req.query?.table_id && Number.isInteger(Number(req.query.table_id))) {
+                where.push("s.competition_table_id = ?");
+                params.push(Number(req.query.table_id));
+            }
+            const search = String(req.query?.search || '').trim();
+            if (search) {
+                where.push("(LOWER(COALESCE(s.title, '')) LIKE LOWER(?) OR LOWER(COALESCE(s.author_full_name, '')) LIKE LOWER(?) OR LOWER(COALESCE(ct.name, '')) LIKE LOWER(?))");
+                const pattern = `%${search}%`;
+                params.push(pattern, pattern, pattern);
+            }
+            const whereSql = `WHERE ${where.join(' AND ')}`;
+            const sortColumns = { table: 'ct.name', author: 's.author_full_name', secretary: 'sr.secretary_points', vote: 'sr.vote_converted_points', council: 'sr.judge_total_points', total: 'sr.final_points' };
+            const sortColumn = sortColumns[req.query?.sort] || 's.id';
+            const direction = String(req.query?.direction || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+            const judgeUserId = Number(req.session?.user?.id) || 0;
+            const selectSql = `SELECT s.*, COALESCE(m.interaction_count, 0) AS interaction_count,
+                COALESCE(m.share_count, 0) AS share_count, COALESCE(m.engagement_score, 0) AS engagement_score,
+                vr.rank_position AS vote_rank_position, COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
+                COALESCE(sr.judge_total_points, 0) AS judge_total_points, sr.secretary_points, sr.secretary_reason,
+                COALESCE(sr.final_points, 0) AS final_points,
+                CASE WHEN EXISTS (SELECT 1 FROM judge_scores current_js WHERE current_js.submission_id = s.id AND current_js.judge_user_id = ?) THEN 1 ELSE 0 END AS has_judge_scores
+                FROM submissions s LEFT JOIN submission_vote_metrics m ON m.submission_id = s.id
+                LEFT JOIN vote_rankings vr ON vr.submission_id = s.id LEFT JOIN submission_results sr ON sr.submission_id = s.id
+                LEFT JOIN competition_tables ct ON ct.id = s.competition_table_id ${whereSql}`;
+            const countRow = await dbGet(`SELECT COUNT(*) AS total FROM submissions s LEFT JOIN competition_tables ct ON ct.id = s.competition_table_id ${whereSql}`, params);
+            const total = Number(countRow?.total || 0);
+            const rows = await dbAll(`${selectSql} ORDER BY ${sortColumn} ${direction}, s.id DESC LIMIT ? OFFSET ?`, [judgeUserId, ...params, pageSize, (page - 1) * pageSize]);
+            return res.json({ success: true, message: "Lấy danh sách bài thi thành công", data: rows, meta: { page, page_size: pageSize, total, total_pages: Math.max(1, Math.ceil(total / pageSize)) } });
+        } catch (error) {
+            return res.status(500).json({ success: false, message: getSubmissionErrorMessage(error) });
+        }
+    }
+
     static async getSubmissions(req, res) {
+        if (String(req.query?.judge_scope || '') === '1') return SubmissionController.getJudgeSubmissions(req, res);
         try {
             const rows = await dbAll(`
                 SELECT s.*, COALESCE(m.interaction_count, 0) AS interaction_count,

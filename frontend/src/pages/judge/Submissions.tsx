@@ -12,6 +12,14 @@ type SubmissionRow = {
   author_full_name: string | null
   description: string | null
   fb_url: string | null
+  vote_converted_points?: number | string | null
+  judge_total_points?: number | string | null
+  final_points?: number | string | null
+  secretary_points?: number | string | null
+  secretary_reason?: string | null
+  has_judge_scores?: number | boolean
+  judge_username?: string | null
+  judge_full_name?: string | null
 }
 
 type CompetitionTableRow = {
@@ -46,14 +54,6 @@ type SubmissionResultRow = {
   secretary_points?: number | string | null
   secretary_reason?: string | null
 }
-type SubmissionScoreResponse = {
-  scores: JudgeScoreRow[]
-  totals: Array<{
-    judge_user_id: number
-    total_points: number | string
-  }>
-}
-
 type StatusEntry = {
   hasScores: boolean
   judgeUsername?: string
@@ -119,8 +119,10 @@ export default function JudgeSubmissions() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [tableFilter, setTableFilter] = useState('ALL')
   const [query, setQuery] = useState('')
+  const [queryInput, setQueryInput] = useState('')
   const [submissionStatusMap, setSubmissionStatusMap] = useState<Record<number, StatusEntry>>({})
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRow | null>(null)
@@ -136,14 +138,41 @@ export default function JudgeSubmissions() {
     setLoading(true)
     setError('')
     try {
-      const [submissionRes, tableRes, resultsRes] = await Promise.all([
-        api.get('/api/v1/submissions'),
+      const [submissionRes, tableRes] = await Promise.all([
+        api.get('/api/v1/submissions', {
+          params: {
+            judge_scope: 1,
+            page,
+            page_size: PAGE_SIZE,
+            table_id: tableFilter === 'ALL' ? undefined : tableFilter,
+            search: query.trim() || undefined,
+            sort: sortState.direction === 'time' ? undefined : sortState.key,
+            direction: sortState.direction === 'time' ? undefined : sortState.direction,
+          },
+        }),
         api.get('/api/v1/competition_tables'),
-        api.get('/api/v1/submission_results'),
       ])
-      setSubmissions((submissionRes.data?.data ?? []) as SubmissionRow[])
+      const nextSubmissions = (submissionRes.data?.data ?? []) as SubmissionRow[]
+      setSubmissions(nextSubmissions)
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
-      setResults((resultsRes.data?.data ?? []) as SubmissionResultRow[])
+      setResults(nextSubmissions.map((row) => ({
+        submission_id: row.id,
+        judge_total_points: row.judge_total_points ?? 0,
+        vote_converted_points: row.vote_converted_points ?? 0,
+        final_points: row.final_points ?? 0,
+        secretary_points: row.secretary_points,
+        secretary_reason: row.secretary_reason,
+      })))
+      const nextStatusMap: Record<number, StatusEntry> = {}
+      nextSubmissions.forEach((row) => {
+        nextStatusMap[row.id] = {
+          hasScores: Boolean(row.has_judge_scores),
+          judgeUsername: row.judge_username || undefined,
+          judgeFullName: row.judge_full_name || undefined,
+        }
+      })
+      setSubmissionStatusMap(nextStatusMap)
+      setTotalCount(Number(submissionRes.data?.meta?.total || 0))
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không tải được danh sách bài dự thi.'))
     } finally {
@@ -153,7 +182,12 @@ export default function JudgeSubmissions() {
 
   useEffect(() => {
     void loadData()
-  }, [])
+  }, [page, tableFilter, query, sortState])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(queryInput), 300)
+    return () => window.clearTimeout(timer)
+  }, [queryInput])
 
   const tableNameById = useMemo(() => {
     const map = new Map<number, string>()
@@ -169,13 +203,7 @@ export default function JudgeSubmissions() {
 
     return map
   }, [results])
-  const statusRows = useMemo(
-    () =>
-      submissions.filter(
-        (row) => Boolean(row.fb_url?.trim()) && (tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter),
-      ),
-    [submissions, tableFilter],
-  )
+  const statusRows = submissions
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -236,65 +264,12 @@ export default function JudgeSubmissions() {
     })
   }, [filteredRows, resultBySubmissionId, sortState, tableNameById])
 
-  const totalPages = Math.max(1, Math.ceil(displayedRows.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const pagedRows = useMemo(
-    () => displayedRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [displayedRows, safePage],
+    () => displayedRows,
+    [displayedRows],
   )
-
-  useEffect(() => {
-    setPage(1)
-  }, [tableFilter, query])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadStatuses() {
-      if (statusRows.length === 0) {
-        if (active) setSubmissionStatusMap({})
-        return
-      }
-
-      try {
-        const responses = await Promise.all(
-          statusRows.map(async (submission) => {
-            const response = await api.get(`/api/v1/judge_scores/submission/${submission.id}`)
-            return {
-              id: submission.id,
-              data: response.data?.data as SubmissionScoreResponse | undefined,
-            }
-          }),
-        )
-
-        if (!active) return
-
-        const nextStatusMap: Record<number, StatusEntry> = {}
-        responses.forEach(({ id, data }) => {
-          const judgeScore = data?.scores?.find(
-            (score) => Number(score.judge_user_id) === judgeUserId,
-          )
-
-          const hasScores = Boolean(judgeScore)
-
-          nextStatusMap[id] = {
-            hasScores,
-            judgeUsername: judgeScore?.judge_username,
-            judgeFullName: judgeScore?.judge_full_name,
-          }
-        })
-        setSubmissionStatusMap(nextStatusMap)
-      } catch {
-        if (active) setSubmissionStatusMap({})
-      }
-    }
-
-    void loadStatuses()
-
-    return () => {
-      active = false
-    }
-  }, [judgeUserId, statusRows])
 
   function resetModalState() {
     setModalError('')
@@ -437,7 +412,7 @@ export default function JudgeSubmissions() {
             <p className="vb-overline">Danh sách</p>
             <h2>Bài dự thi</h2>
           </div>
-          <p className="vb-section-note">{filteredRows.length} bài dự thi khớp điều kiện hiện tại.</p>
+          <p className="vb-section-note">{totalCount} bài dự thi khớp điều kiện hiện tại.</p>
         </div>
 
         <div className="vb-tw-toolbar-row">
@@ -447,8 +422,11 @@ export default function JudgeSubmissions() {
               id="judge-submission-search"
               className="vb-input"
               placeholder="Tên bảng thi, tiêu đề, username, họ tên người chấm..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={queryInput}
+              onChange={(e) => {
+                setPage(1)
+                setQueryInput(e.target.value)
+              }}
             />
           </div>
 
@@ -458,7 +436,10 @@ export default function JudgeSubmissions() {
               id="judge-table-filter"
               className="vb-toolbar-select"
               value={tableFilter}
-              onChange={(e) => setTableFilter(e.target.value)}
+              onChange={(e) => {
+                setPage(1)
+                setTableFilter(e.target.value)
+              }}
             >
               <option value="ALL">Tất cả bảng thi</option>
               {tables.map((table) => (
