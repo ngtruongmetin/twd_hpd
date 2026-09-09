@@ -1,4 +1,5 @@
-◇ injected env (8) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+◇ injected env (8) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
 Proxy bypassed (BYPASS_PROXY=true)
 Server running on port 3000
 Connected to SQLite database
+Removed incompatible team submission trigger

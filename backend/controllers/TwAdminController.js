@@ -1,6 +1,7 @@
 const db = require("../utils/db");
-const { FALLBACK_PROVINCES } = require("../utils/provinces");
+const { FALLBACK_PROVINCES, fetchProvinceList } = require("../utils/provinces");
 const XLSX = require("xlsx");
+const crypto = require("crypto");
 const {
   dbRun,
   recalculateCompetitionTables,
@@ -20,6 +21,17 @@ function dbAll(sql, params = []) {
   });
 }
 
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
+  });
+}
+
+const VIRTUAL_SUBMISSION_FAILURE_REASON = "Hình thức thể hiện sản phẩm dự thi không phù hợp với yêu cầu của cuộc thi.";
+const virtualSubmissionPreviews = new Map();
+const virtualSubmissionJobs = new Map();
+const VIRTUAL_SUBMISSION_PREVIEW_TTL_MS = 30 * 60 * 1000;
+
 function normalizeText(value) {
   return String(value ?? "")
     .normalize("NFD")
@@ -38,6 +50,64 @@ function normalizeProvinceKey(value) {
   text = text.replace(/\s+city$/g, "");
 
   return text;
+}
+
+function normalizeCell(value) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function isEmptyRow(row) {
+  return !row || row.every((value) => !normalizeCell(value));
+}
+
+function isValidUrl(value) {
+  try {
+    const url = new URL(normalizeCell(value));
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeHeader(value) {
+  return normalizeText(value).replace(/\s+/g, " ");
+}
+
+function getVirtualTableCode(value) {
+  const code = normalizeCell(value).toUpperCase();
+  return code === "KC" || code === "ST" ? code : null;
+}
+
+function getVirtualTableCodeFromTable(table) {
+  const value = `${table.code || ""} ${table.name || ""}`.toLowerCase();
+  if (value.includes("capcut")) return "ST";
+  if (value.includes("ke chuyen") || value.includes("kể chuyện")) return "KC";
+  return null;
+}
+
+async function fetchWardsForProvince(provinceCode) {
+  const response = await fetch(`https://provinces.open-api.vn/api/v2/p/${provinceCode}?depth=2`);
+  if (!response.ok) throw new Error("Không tải được danh mục phường/xã");
+  const data = await response.json();
+  return Array.isArray(data?.wards) ? data.wards : [];
+}
+
+function makePreviewSummary(rows) {
+  const tableCounts = new Map();
+  const provinceCounts = new Map();
+  rows.forEach((row) => {
+    if (!row.valid) return;
+    tableCounts.set(row.competition_table_name, (tableCounts.get(row.competition_table_name) || 0) + 1);
+    provinceCounts.set(row.province_name, (provinceCounts.get(row.province_name) || 0) + 1);
+  });
+  return {
+    total_rows: rows.length,
+    valid_rows: rows.filter((row) => row.valid).length,
+    invalid_rows: rows.filter((row) => !row.valid).length,
+    tables: [...tableCounts].map(([name, count]) => ({ name, count })),
+    provinces: [...provinceCounts].map(([name, count]) => ({ name, count })),
+    errors: rows.filter((row) => !row.valid).map((row) => ({ row: row.row, message: row.errors.join(" ") })),
+  };
 }
 
 const SCHOOL_COUNTS = {
@@ -182,6 +252,160 @@ function createSchoolGroup() {
 }
 
 class TwAdminController {
+  static async previewVirtualSubmissions(req, res) {
+    const file = req.file;
+    if (!file?.buffer) return res.status(400).json({ success: false, message: "Vui lòng chọn file Excel" });
+
+    try {
+      const workbook = XLSX.read(file.buffer, { type: "buffer", cellDates: false });
+      const firstSheet = workbook.SheetNames[0];
+      if (!firstSheet) return res.status(400).json({ success: false, message: "File Excel không có sheet dữ liệu" });
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, defval: "", raw: false });
+      const season = await dbGet("SELECT id, name, status FROM seasons WHERE status <> 'ARCHIVED' ORDER BY id DESC LIMIT 1");
+      if (!season) return res.status(400).json({ success: false, message: "Không tìm thấy mùa thi đang hoạt động" });
+      const tables = await dbAll("SELECT id, name, code FROM competition_tables WHERE season_id = ?", [season.id]);
+      const tableByCode = new Map(tables.map((table) => [getVirtualTableCodeFromTable(table), table]));
+      const provinces = await fetchProvinceList();
+      // Import requires the same province label returned by the API; do not accept shortened labels.
+      const provinceByKey = new Map(provinces.map((province) => [normalizeText(province.name), province]));
+      const wardCache = new Map();
+      const previewRows = [];
+
+      for (let index = 1; index < rows.length; index += 1) {
+        const values = rows[index] || [];
+        if (isEmptyRow(values)) continue;
+        const row = index + 1;
+        const [tableRaw, authorRaw, provinceRaw, wardRaw, schoolRaw, urlRaw] = values;
+        const errors = [];
+        const tableCode = getVirtualTableCode(tableRaw);
+        const author = normalizeCell(authorRaw);
+        const provinceInput = normalizeCell(provinceRaw);
+        const wardInput = normalizeCell(wardRaw);
+        const school = normalizeCell(schoolRaw);
+        const videoUrl = normalizeCell(urlRaw);
+        const table = tableCode ? tableByCode.get(tableCode) : null;
+        const province = provinceByKey.get(normalizeText(provinceInput));
+
+        if (!tableCode) errors.push("Bảng thi chỉ nhận KC hoặc ST.");
+        else if (!table) errors.push(`Mùa ${season.name} chưa có bảng thi ${tableCode}.`);
+        if (!author) errors.push("Tên tác giả/tên người nộp không được để trống.");
+        if (!province) errors.push("Tỉnh/Thành không khớp danh mục.");
+        if (!wardInput) errors.push("Xã/Phường không được để trống.");
+        if (!isValidUrl(videoUrl)) errors.push("Link bài thi phải là URL http hoặc https hợp lệ.");
+
+        let ward = null;
+        if (province && wardInput) {
+          try {
+            if (!wardCache.has(province.code)) {
+              const wards = await fetchWardsForProvince(province.code);
+              wardCache.set(province.code, new Map(wards.map((item) => [normalizeText(item.name), item])));
+            }
+            ward = wardCache.get(province.code).get(normalizeText(wardInput)) || null;
+            if (!ward) errors.push("Xã/Phường không thuộc Tỉnh/Thành đã chọn.");
+          } catch {
+            errors.push("Không thể đối chiếu danh mục Xã/Phường.");
+          }
+        }
+
+        previewRows.push({
+          row,
+          valid: errors.length === 0,
+          errors,
+          competition_table_id: table?.id || null,
+          competition_table_name: table?.name || tableCode || null,
+          title: author,
+          author_full_name: author,
+          province_name: province?.name || provinceInput,
+          ward_name: ward?.name || wardInput,
+          school_name: school || null,
+          video_url: videoUrl,
+        });
+      }
+
+      if (previewRows.length === 0) return res.status(400).json({ success: false, message: "File không có dòng dữ liệu" });
+      const token = crypto.randomUUID();
+      virtualSubmissionPreviews.set(token, { expiresAt: Date.now() + VIRTUAL_SUBMISSION_PREVIEW_TTL_MS, season, rows: previewRows });
+      const summary = makePreviewSummary(previewRows);
+      return res.json({ success: true, data: { token, season: { id: season.id, name: season.name }, ...summary } });
+    } catch (error) {
+      console.error("[TwAdminController] previewVirtualSubmissions failed:", error);
+      return res.status(500).json({ success: false, message: "Không thể đọc file Excel" });
+    }
+  }
+
+  static async confirmVirtualSubmissions(req, res) {
+    const token = String(req.body?.token || "");
+    const preview = virtualSubmissionPreviews.get(token);
+    if (!preview || preview.expiresAt < Date.now()) {
+      virtualSubmissionPreviews.delete(token);
+      return res.status(400).json({ success: false, message: "Bản xem trước đã hết hạn, vui lòng chọn lại file" });
+    }
+    const validRows = preview.rows.filter((row) => row.valid);
+    if (validRows.length === 0) return res.status(400).json({ success: false, message: "Không có dòng hợp lệ để import" });
+
+    const jobId = crypto.randomUUID();
+    const job = {
+      id: jobId,
+      status: "QUEUED",
+      total: validRows.length,
+      processed: 0,
+      imported: 0,
+      errors: 0,
+      error_details: [],
+      imported_rows: [],
+      started_at: null,
+      finished_at: null,
+    };
+    virtualSubmissionJobs.set(jobId, job);
+    virtualSubmissionPreviews.delete(token);
+    void TwAdminController.runVirtualSubmissionImport(job, preview.season.id, validRows);
+    return res.status(202).json({ success: true, message: "Đã bắt đầu import bài dự thi ảo", data: { job_id: jobId, ...job } });
+  }
+
+  static async getVirtualSubmissionImportJob(req, res) {
+    const job = virtualSubmissionJobs.get(String(req.params.jobId || ""));
+    if (!job) return res.status(404).json({ success: false, message: "Không tìm thấy tiến trình import" });
+    const { imported_rows, ...snapshot } = job;
+    return res.json({
+      success: true,
+      data: job.status === "COMPLETED" ? { ...snapshot, imported_rows } : snapshot,
+    });
+  }
+
+  static async runVirtualSubmissionImport(job, seasonId, rows) {
+    job.status = "RUNNING";
+    job.started_at = new Date().toISOString();
+    const batchSize = 100;
+    for (let start = 0; start < rows.length; start += batchSize) {
+      const batch = rows.slice(start, start + batchSize);
+      for (const row of batch) {
+        try {
+          const result = await dbRun(
+            `INSERT INTO submissions (
+              season_id, competition_table_id, submitted_by_user_id, title, description, video_url,
+              author_full_name, author_province_name, author_ward_name, author_school_name,
+              drive_is_public, status, is_failed, failed_reason
+            ) VALUES (?, ?, NULL, ?, NULL, ?, ?, ?, ?, ?, 0, 'SUBMITTED', 1, ?)`,
+            [seasonId, row.competition_table_id, row.title, row.video_url, row.author_full_name, row.province_name, row.ward_name, row.school_name, VIRTUAL_SUBMISSION_FAILURE_REASON],
+          );
+          job.imported += 1;
+          job.imported_rows.push({ id: result.lastID, row: row.row });
+        } catch (error) {
+          job.errors += 1;
+          if (job.error_details.length < 100) {
+            job.error_details.push({ row: row.row, message: error?.message || "Không thể ghi dòng dữ liệu" });
+          }
+        } finally {
+          job.processed += 1;
+        }
+      }
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    job.status = "COMPLETED";
+    job.finished_at = new Date().toISOString();
+    setTimeout(() => virtualSubmissionJobs.delete(job.id), 60 * 60 * 1000).unref?.();
+  }
+
   static async importVoteMetrics(req, res) {
     const file = req.file;
     if (!file?.buffer) {

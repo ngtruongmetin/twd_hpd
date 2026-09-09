@@ -133,7 +133,7 @@ Table submissions {
   id bigserial [pk]
   season_id bigint [not null, ref: > seasons.id]
   competition_table_id bigint [not null, ref: > competition_tables.id]
-  submitted_by_user_id bigint [not null, ref: > users.id]
+  submitted_by_user_id bigint [ref: > users.id]
 
   title varchar(255) [not null]
   description text

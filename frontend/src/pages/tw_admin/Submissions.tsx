@@ -59,6 +59,27 @@ type ImportRankingSummary = {
   top5: ImportTopRow[]
 }
 
+type VirtualImportPreview = {
+  token: string
+  season: { id: number; name: string }
+  total_rows: number
+  valid_rows: number
+  invalid_rows: number
+  tables: Array<{ name: string; count: number }>
+  provinces: Array<{ name: string; count: number }>
+  errors: Array<{ row: number; message: string }>
+}
+
+type VirtualImportJob = {
+  id: string
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED'
+  total: number
+  processed: number
+  imported: number
+  errors: number
+  error_details?: Array<{ row: number; message: string }>
+}
+
 type SortKey = 'time' | 'table' | 'author' | 'title' | 'submittedAt' | 'facebook' | 'vote' | 'judge' | 'secretary' | 'total' | 'status'
 type SortDirection = 'desc' | 'asc' | 'time'
 
@@ -245,6 +266,11 @@ export default function TwAdminSubmissions() {
   const [secretaryReason, setSecretaryReason] = useState('')
   const [secretaryError, setSecretaryError] = useState('')
   const [secretarySaving, setSecretarySaving] = useState(false)
+  const [virtualImportPreview, setVirtualImportPreview] = useState<VirtualImportPreview | null>(null)
+  const [virtualImporting, setVirtualImporting] = useState(false)
+  const [virtualImportConfirming, setVirtualImportConfirming] = useState(false)
+  const [virtualImportError, setVirtualImportError] = useState('')
+  const [virtualImportJob, setVirtualImportJob] = useState<VirtualImportJob | null>(null)
 
   function cycleSort(key: Exclude<SortKey, 'time'>) {
     setSortState((current) => {
@@ -355,9 +381,9 @@ export default function TwAdminSubmissions() {
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
       setResults((resultRes.data?.data ?? []) as ResultRow[])
       const nextComplaintSummaries: Record<number, ComplaintSummary> = {}
-      ;(complaintRes.data?.data ?? []).forEach((summary: ComplaintSummary) => {
-        nextComplaintSummaries[summary.submission_id] = summary
-      })
+        ; (complaintRes.data?.data ?? []).forEach((summary: ComplaintSummary) => {
+          nextComplaintSummaries[summary.submission_id] = summary
+        })
       setComplaintSummaries(nextComplaintSummaries)
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không tải được dữ liệu bài nộp.'))
@@ -804,6 +830,54 @@ export default function TwAdminSubmissions() {
     }
   }
 
+  async function handleVirtualImportFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setVirtualImporting(true)
+    setVirtualImportError('')
+    setVirtualImportPreview(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/api/v1/tw_admin/virtual-submissions/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setVirtualImportPreview(response.data?.data as VirtualImportPreview)
+    } catch (err: unknown) {
+      setVirtualImportError(normalizeError(err, 'Không thể đọc file bài dự thi ảo.'))
+    } finally {
+      setVirtualImporting(false)
+    }
+  }
+
+  async function confirmVirtualImport() {
+    if (!virtualImportPreview) return
+    setVirtualImportConfirming(true)
+    setVirtualImportError('')
+    try {
+      const response = await api.post('/api/v1/tw_admin/virtual-submissions/confirm', {
+        token: virtualImportPreview.token,
+      })
+      let job = response.data?.data as VirtualImportJob
+      setVirtualImportJob(job)
+      while (job.status !== 'COMPLETED') {
+        await new Promise((resolve) => window.setTimeout(resolve, 300))
+        const statusResponse = await api.get(`/api/v1/tw_admin/virtual-submissions/jobs/${job.id}`)
+        job = statusResponse.data?.data as VirtualImportJob
+        setVirtualImportJob(job)
+      }
+      setMessage(`Đã import ${job.imported} bài dự thi ảo${job.errors ? `, ${job.errors} dòng lỗi khi ghi` : ''}.`)
+      setVirtualImportPreview(null)
+      setVirtualImportJob(null)
+      await loadData()
+    } catch (err: unknown) {
+      setVirtualImportError(normalizeError(err, 'Không thể import bài dự thi ảo.'))
+    } finally {
+      setVirtualImportConfirming(false)
+    }
+  }
+
   void handleVoteRankSubmit
 
   return (
@@ -820,6 +894,7 @@ export default function TwAdminSubmissions() {
       </section>
 
       {error ? <section className="vb-account-banner is-error">{error}</section> : null}
+      {virtualImportError ? <section className="vb-account-banner is-error">{virtualImportError}</section> : null}
       {importErrors.length > 0 ? <section className="vb-account-banner is-error">{importErrors.join(' | ')}</section> : null}
       {message ? <section className="vb-account-banner">{message}</section> : null}
       {loading ? <section className="vb-account-banner">Đang tải dữ liệu...</section> : null}
@@ -945,6 +1020,10 @@ export default function TwAdminSubmissions() {
           </div>
 
           <div className="vb-tw-toolbar-cta">
+            <label className="vb-tw-btn-muted" style={{ cursor: virtualImporting ? 'wait' : 'pointer' }}>
+              {virtualImporting ? 'Đang đọc file...' : 'Nhập Excel'}
+              <input type="file" accept=".xlsx,.xls" hidden disabled={virtualImporting} onChange={(event) => void handleVirtualImportFile(event)} />
+            </label>
             <label className="vb-tw-btn-muted" style={{ cursor: importing ? 'wait' : 'pointer' }}>
               {importing ? 'Đang nhập...' : 'Nhập Excel bình chọn'}
               <input type="file" accept=".xlsx,.xls" hidden disabled={importing} onChange={(event) => void handleVoteImport(event)} />
@@ -963,73 +1042,73 @@ export default function TwAdminSubmissions() {
         <div className="vb-account-table-wrap">
           <table className="vb-account-table">
             {false ? (
-            <thead>
-              <tr>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('table')}>
-                    Bảng thi
-                    <span>{getSortIcon('table')}</span>
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('author')}>
-                    Người nộp
-                    <span>{getSortIcon('author')}</span>
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('title')}>
-                    Tiêu đề
-                    <span>{getSortIcon('title')}</span>
-                  </button>
-                </th>
-                <th>Bài thi</th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('facebook')}>
-                    Link Facebook
-                    <span>{getSortIcon('facebook')}</span>
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('vote')}>
-                    Điểm bình chọn
-                    <span>{getSortIcon('vote')}</span>
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('judge')}>
-                    Điểm chấm hội đồng
-                    <span>{getSortIcon('judge')}</span>
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>
-                    Điểm tổ thư ký
-                    <span>{getSortIcon('secretary')}</span>
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('total')}>
-                    Tổng điểm
-                    <span>{getSortIcon('total')}</span>
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('status')}>
-                    Đạt yêu cầu
-                    <span>{getSortIcon('status')}</span>
-                  </button>
-                </th>
-                <th>Khiếu nại điểm</th>
-                <th>
-                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('submittedAt')}>
-                    Thời gian nộp
-                    <span>{getSortIcon('submittedAt')}</span>
-                  </button>
-                </th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
+              <thead>
+                <tr>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('table')}>
+                      Bảng thi
+                      <span>{getSortIcon('table')}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('author')}>
+                      Người nộp
+                      <span>{getSortIcon('author')}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('title')}>
+                      Tiêu đề
+                      <span>{getSortIcon('title')}</span>
+                    </button>
+                  </th>
+                  <th>Bài thi</th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('facebook')}>
+                      Link Facebook
+                      <span>{getSortIcon('facebook')}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('vote')}>
+                      Điểm bình chọn
+                      <span>{getSortIcon('vote')}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('judge')}>
+                      Điểm chấm hội đồng
+                      <span>{getSortIcon('judge')}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>
+                      Điểm tổ thư ký
+                      <span>{getSortIcon('secretary')}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('total')}>
+                      Tổng điểm
+                      <span>{getSortIcon('total')}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('status')}>
+                      Đạt yêu cầu
+                      <span>{getSortIcon('status')}</span>
+                    </button>
+                  </th>
+                  <th>Khiếu nại điểm</th>
+                  <th>
+                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('submittedAt')}>
+                      Thời gian nộp
+                      <span>{getSortIcon('submittedAt')}</span>
+                    </button>
+                  </th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
             ) : (
               <thead>
                 <tr>
@@ -1297,6 +1376,68 @@ export default function TwAdminSubmissions() {
                   <button type="submit" className="vb-tw-btn-primary" disabled={secretarySaving}>{secretarySaving ? 'Đang lưu...' : 'Lưu điểm'}</button>
                 </div>
               </form>
+            </section>
+          </div>
+        ) : null}
+
+        {virtualImportPreview ? (
+          <div className="vb-modal-backdrop" role="presentation" onClick={() => setVirtualImportPreview(null)}>
+            <section className="vb-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              <div className="vb-modal-head">
+                <div>
+                  <p className="vb-overline">Preview nhập bài ảo</p>
+                  <h2>{virtualImportPreview.season.name}</h2>
+                </div>
+                <button type="button" className="vb-modal-close" onClick={() => setVirtualImportPreview(null)}>Đóng</button>
+              </div>
+              <div className="vb-modal-body">
+                {virtualImportJob ? (
+                  <section className="vb-season-panel">
+                    <div className="vb-section-head is-compact">
+                      <div>
+                        <p className="vb-overline">Tiến trình import</p>
+                        <h3>{virtualImportJob.status === 'COMPLETED' ? 'Đã hoàn tất' : 'Đang xử lý...'}</h3>
+                      </div>
+                      <strong>{virtualImportJob.total > 0 ? Math.round((virtualImportJob.processed / virtualImportJob.total) * 100) : 0}%</strong>
+                    </div>
+                    <progress value={virtualImportJob.processed} max={virtualImportJob.total} style={{ width: '100%' }} />
+                    <p className="vb-modal-description">
+                      Đã xử lý {virtualImportJob.processed}/{virtualImportJob.total} dòng · OK {virtualImportJob.imported} · Lỗi {virtualImportJob.errors}
+                    </p>
+                    {virtualImportJob.error_details && virtualImportJob.error_details.length > 0 ? (
+                      <div className="vb-account-table-wrap">
+                        <table className="vb-account-table">
+                          <thead><tr><th>Dòng</th><th>Lỗi khi ghi</th></tr></thead>
+                          <tbody>{virtualImportJob.error_details.slice(0, 100).map((item) => <tr key={`${item.row}-${item.message}`}><td>{item.row}</td><td>{item.message}</td></tr>)}</tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+                <dl className="vb-lookup-mobile-grid">
+                  <div><dt>Tổng dòng</dt><dd>{virtualImportPreview.total_rows}</dd></div>
+                  <div><dt>Dòng hợp lệ</dt><dd>{virtualImportPreview.valid_rows}</dd></div>
+                  <div><dt>Dòng lỗi</dt><dd>{virtualImportPreview.invalid_rows}</dd></div>
+                </dl>
+                <h3>Bảng thi</h3>
+                <p className="vb-modal-description">{virtualImportPreview.tables.map((item) => `${item.name}: ${item.count}`).join(' · ') || 'Không có'}</p>
+                <h3>Tỉnh/thành</h3>
+                <p className="vb-modal-description">{virtualImportPreview.provinces.map((item) => `${item.name}: ${item.count}`).join(' · ') || 'Không có'}</p>
+                {virtualImportPreview.errors.length > 0 ? (
+                  <div className="vb-account-table-wrap">
+                    <table className="vb-account-table">
+                      <thead><tr><th>Dòng</th><th>Lỗi</th></tr></thead>
+                      <tbody>{virtualImportPreview.errors.map((item) => <tr key={`${item.row}-${item.message}`}><td>{item.row}</td><td>{item.message}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                ) : null}
+                <p className="vb-modal-description">Chỉ các dòng hợp lệ sẽ được import. Bài ảo mặc định không đạt theo lý do cố định.</p>
+                {virtualImportError ? <p className="vb-form-error">{virtualImportError}</p> : null}
+                <div className="vb-modal-actions">
+                  <button type="button" className="vb-tw-btn-muted" onClick={() => setVirtualImportPreview(null)} disabled={virtualImportConfirming}>Hủy</button>
+                  <button type="button" className="vb-tw-btn-primary" onClick={() => void confirmVirtualImport()} disabled={virtualImportConfirming || virtualImportJob !== null || virtualImportPreview.valid_rows === 0}>{virtualImportConfirming ? 'Đang import...' : 'Xác nhận import'}</button>
+                </div>
+              </div>
             </section>
           </div>
         ) : null}

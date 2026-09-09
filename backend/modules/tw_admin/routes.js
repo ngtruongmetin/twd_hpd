@@ -9,5 +9,8 @@ router.use(AuthMiddleware.IsLogin, AuthMiddleware.CustomRole(["TW_ADMIN"]));
 
 router.get("/province-stats", TwAdminController.getProvinceStatistics);
 router.post("/vote-import", upload.single("file"), TwAdminController.importVoteMetrics);
+router.post("/virtual-submissions/preview", upload.single("file"), TwAdminController.previewVirtualSubmissions);
+router.post("/virtual-submissions/confirm", TwAdminController.confirmVirtualSubmissions);
+router.get("/virtual-submissions/jobs/:jobId", TwAdminController.getVirtualSubmissionImportJob);
 
 module.exports = router;

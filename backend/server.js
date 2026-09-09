@@ -247,12 +247,120 @@ function ensureSecretaryScoreColumns() {
   });
 }
 
+function ensureVirtualSubmissionOwnerNullable() {
+  db.all("PRAGMA table_info(submissions)", [], (err, rows) => {
+    if (err || !(rows || []).some((column) => column.name === "submitted_by_user_id" && column.notnull === 1)) {
+      if (err) console.error("Failed to inspect submissions owner constraint:", err.message);
+      return;
+    }
+
+    db.serialize(() => {
+      db.run("BEGIN TRANSACTION");
+      db.run("DROP TRIGGER IF EXISTS trg_submissions_max_3", (dropErr) => {
+        if (dropErr) console.error("Failed to drop submissions trigger during migration:", dropErr.message);
+      });
+      db.run("ALTER TABLE submissions RENAME TO submissions_legacy_owner_migration", (renameErr) => {
+        if (renameErr) {
+          console.error("Failed to rename submissions during migration:", renameErr.message);
+          db.run("ROLLBACK");
+          return;
+        }
+        db.run(`
+          CREATE TABLE submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            season_id INTEGER NOT NULL,
+            competition_table_id INTEGER NOT NULL,
+            team_id INTEGER,
+            submitted_by_user_id INTEGER,
+            title TEXT NOT NULL,
+            description TEXT,
+            video_url TEXT NOT NULL,
+            file_name TEXT,
+            file_ext TEXT,
+            file_size_bytes INTEGER,
+            duration_seconds INTEGER,
+            resolution TEXT,
+            aspect_ratio TEXT,
+            note TEXT,
+            author_full_name TEXT,
+            author_province_name TEXT,
+            author_ward_name TEXT,
+            author_school_name TEXT,
+            other_members TEXT,
+            drive_file_id TEXT,
+            drive_is_public INTEGER DEFAULT 0,
+            fb_url TEXT,
+            status TEXT NOT NULL DEFAULT 'SUBMITTED',
+            submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            is_failed INTEGER NOT NULL DEFAULT 0,
+            failed_reason TEXT,
+            FOREIGN KEY (season_id) REFERENCES seasons(id),
+            FOREIGN KEY (competition_table_id) REFERENCES competition_tables(id),
+            FOREIGN KEY (submitted_by_user_id) REFERENCES users(id)
+          )
+        `, (createErr) => {
+          if (createErr) {
+            console.error("Failed to recreate submissions during migration:", createErr.message);
+            db.run("ROLLBACK");
+            return;
+          }
+          db.run(`INSERT INTO submissions (id, season_id, competition_table_id, team_id, submitted_by_user_id, title, description, video_url, file_name, file_ext, file_size_bytes, duration_seconds, resolution, aspect_ratio, note, author_full_name, author_province_name, author_ward_name, author_school_name, other_members, drive_file_id, drive_is_public, fb_url, status, submitted_at, updated_at, is_failed, failed_reason)
+                  SELECT id, season_id, competition_table_id, team_id, submitted_by_user_id, title, description, video_url, file_name, file_ext, file_size_bytes, duration_seconds, resolution, aspect_ratio, note, author_full_name, author_province_name, author_ward_name, author_school_name, other_members, drive_file_id, drive_is_public, fb_url, status, submitted_at, updated_at, is_failed, failed_reason
+                  FROM submissions_legacy_owner_migration`, (copyErr) => {
+            if (copyErr) {
+              console.error("Failed to copy submissions during migration:", copyErr.message);
+              db.run("ROLLBACK");
+              return;
+            }
+            db.run("DROP TABLE submissions_legacy_owner_migration", (dropTableErr) => {
+              if (dropTableErr) {
+                console.error("Failed to remove legacy submissions table:", dropTableErr.message);
+                db.run("ROLLBACK");
+                return;
+              }
+              db.run("CREATE INDEX IF NOT EXISTS idx_submissions_season_id ON submissions(season_id)");
+              db.run("CREATE INDEX IF NOT EXISTS idx_submissions_competition_table_id ON submissions(competition_table_id)");
+              db.run("CREATE INDEX IF NOT EXISTS idx_submissions_submitted_by_user_id ON submissions(submitted_by_user_id)");
+              db.run("CREATE INDEX IF NOT EXISTS idx_submissions_season_table_status ON submissions(season_id, competition_table_id, status)");
+              db.run(`CREATE TRIGGER IF NOT EXISTS trg_submissions_max_3 BEFORE INSERT ON submissions FOR EACH ROW BEGIN SELECT CASE WHEN (SELECT COUNT(1) FROM submissions s WHERE s.team_id = NEW.team_id AND s.competition_table_id = NEW.competition_table_id) >= 3 THEN RAISE(ABORT, 'Maximum 3 submissions per team per competition table exceeded') END; END`, (triggerErr) => {
+                if (triggerErr) console.warn("Skipped legacy submissions trigger recreation:", triggerErr.message);
+                db.run("COMMIT", (commitErr) => {
+                  if (commitErr) console.error("Failed to commit submissions owner migration:", commitErr.message);
+                  else console.log("Made submissions.submitted_by_user_id nullable");
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+}
+
+function ensureSubmissionTriggerCompatibility() {
+  db.all("PRAGMA table_info(submissions)", [], (err, rows) => {
+    if (err) {
+      console.error("Failed to inspect submission trigger compatibility:", err.message);
+      return;
+    }
+    const hasTeamId = (rows || []).some((column) => column.name === "team_id");
+    if (hasTeamId) return;
+    db.run("DROP TRIGGER IF EXISTS trg_submissions_max_3", (dropErr) => {
+      if (dropErr) console.error("Failed to remove incompatible submissions trigger:", dropErr.message);
+      else console.log("Removed incompatible team submission trigger");
+    });
+  });
+}
+
 ensureUserFacebookColumn();
 ensureUserAuthColumns();
 ensureSubmissionColumns();
 ensureComplaintTables();
 ensureVoteMetricsTable();
 ensureSecretaryScoreColumns();
+ensureVirtualSubmissionOwnerNullable();
+ensureSubmissionTriggerCompatibility();
 
 // Routes
 app.use("/api/v1/auth", require("./modules/auth/routes"));
