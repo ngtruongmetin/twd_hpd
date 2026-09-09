@@ -36,7 +36,11 @@ class TechAdminController {
     scoring_criteria: { select: "SELECT * FROM scoring_criteria", table: "scoring_criteria", pk: "id" },
     judge_scores: { select: "SELECT * FROM judge_scores", table: "judge_scores", pk: "id" },
     vote_rankings: { select: "SELECT * FROM vote_rankings", table: "vote_rankings", pk: "id" },
-    submission_results: { select: "SELECT * FROM submission_results", table: "submission_results", pk: "id" },
+    submission_results: {
+      select: "SELECT id, submission_id, judge_total_points, vote_converted_points, final_points, finalized_at FROM submission_results",
+      table: "submission_results",
+      pk: "id",
+    },
     submissions: { select: "SELECT * FROM submissions", table: "submissions", pk: "id" },
     awards: { select: "SELECT * FROM awards", table: "awards", pk: "id" },
     award_winners: { select: "SELECT * FROM award_winners", table: "award_winners", pk: "id" },
@@ -76,6 +80,7 @@ class TechAdminController {
     }
 
     const allowed = TechAdminController.allowedResources[resource];
+
     if (!allowed) {
       return res.status(400).json({
         success: false,
@@ -105,6 +110,13 @@ class TechAdminController {
     const resource = (req.query.resource || "").trim();
     const id = req.query.id || req.body.id;
     const allowed = TechAdminController.allowedResources[resource];
+
+    if (resource === "judge_scores" || resource === "submission_results") {
+      return res.status(403).json({
+        success: false,
+        message: "Tài nguyên điểm chỉ được cập nhật qua đúng vai trò nghiệp vụ.",
+      });
+    }
 
     if (!resource || !allowed) {
       return res.status(400).json({
@@ -177,6 +189,13 @@ class TechAdminController {
     const resource = (req.query.resource || "").trim();
     const id = req.query.id;
     const allowed = TechAdminController.allowedResources[resource];
+
+    if (resource === "judge_scores" || resource === "submission_results") {
+      return res.status(403).json({
+        success: false,
+        message: "Tài nguyên điểm chỉ được xóa qua đúng vai trò nghiệp vụ.",
+      });
+    }
 
     if (!resource || !allowed) {
       return res.status(400).json({

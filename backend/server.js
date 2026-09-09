@@ -220,11 +220,39 @@ function ensureVoteMetricsTable() {
   });
 }
 
+function ensureSecretaryScoreColumns() {
+  db.all("PRAGMA table_info(submission_results)", [], (err, rows) => {
+    if (err) {
+      console.error("Failed to inspect submission_results table:", err.message);
+      return;
+    }
+
+    const existing = new Set((rows || []).map((column) => column.name));
+    const columns = [
+      { name: "secretary_points", definition: "secretary_points REAL" },
+      { name: "secretary_reason", definition: "secretary_reason TEXT" },
+      { name: "secretary_updated_at", definition: "secretary_updated_at TEXT" },
+      { name: "secretary_updated_by_user_id", definition: "secretary_updated_by_user_id INTEGER" },
+    ];
+    const missing = columns.filter((column) => !existing.has(column.name));
+    const addNext = (index) => {
+      if (index >= missing.length) return;
+      const column = missing[index];
+      db.run(`ALTER TABLE submission_results ADD COLUMN ${column.definition}`, (alterErr) => {
+        if (alterErr) console.error(`Failed to add ${column.name}:`, alterErr.message);
+        addNext(index + 1);
+      });
+    };
+    addNext(0);
+  });
+}
+
 ensureUserFacebookColumn();
 ensureUserAuthColumns();
 ensureSubmissionColumns();
 ensureComplaintTables();
 ensureVoteMetricsTable();
+ensureSecretaryScoreColumns();
 
 // Routes
 app.use("/api/v1/auth", require("./modules/auth/routes"));

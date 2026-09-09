@@ -1394,6 +1394,15 @@
   color: #111111;
 }
 
+.vb-table-code-cell {
+  width: 54px;
+  min-width: 54px;
+  max-width: 54px;
+  white-space: nowrap;
+  font-weight: 800;
+  text-align: center !important;
+}
+
 .vb-account-table tfoot th,
 .vb-account-table tfoot td {
   font-weight: 700;

@@ -8,8 +8,8 @@ router.use(AuthMiddleware.CustomRole(["TECH_ADMIN", "TW_ADMIN", "JUDGE"]));
 router.get("/", (req, res) => JudgeScoreController.getAll(req, res));
 router.get("/submission/:submissionId", (req, res) => JudgeScoreController.getBySubmission(req, res));
 router.get("/:id", (req, res) => JudgeScoreController.getById(req, res));
-router.post("/", (req, res) => JudgeScoreController.create(req, res));
-router.put("/:id", (req, res) => JudgeScoreController.update(req, res));
-router.delete("/:id", (req, res) => JudgeScoreController.remove(req, res));
+router.post("/", AuthMiddleware.CustomRole(["JUDGE"]), (req, res) => JudgeScoreController.create(req, res));
+router.put("/:id", AuthMiddleware.CustomRole(["JUDGE"]), (req, res) => JudgeScoreController.update(req, res));
+router.delete("/:id", AuthMiddleware.CustomRole(["JUDGE"]), (req, res) => JudgeScoreController.remove(req, res));
 
 module.exports = router;

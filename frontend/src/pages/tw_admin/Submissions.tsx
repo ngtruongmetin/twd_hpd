@@ -3,11 +3,10 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from '
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 import { useAuth } from '../../context/useAuth'
-import VoteRankModal from '../../components/VoteRankModal'
 import ComplaintChatModal, {
   type ComplaintSummary,
 } from '../../components/ComplaintChatModal'
-import { complaintStatusClass, complaintStatusLabel, type ComplaintStatus } from '../../components/complaintStatus'
+import { type ComplaintStatus } from '../../components/complaintStatus'
 
 type SubmissionRow = {
   id: number
@@ -38,6 +37,8 @@ type ResultRow = {
   vote_converted_points: number | string
   judge_total_points: number | string
   final_points: number | string
+  secretary_points?: number | string | null
+  secretary_reason?: string | null
 }
 
 type ImportTopRow = {
@@ -58,7 +59,7 @@ type ImportRankingSummary = {
   top5: ImportTopRow[]
 }
 
-type SortKey = 'time' | 'table' | 'author' | 'title' | 'submittedAt' | 'facebook' | 'vote' | 'judge' | 'total' | 'status'
+type SortKey = 'time' | 'table' | 'author' | 'title' | 'submittedAt' | 'facebook' | 'vote' | 'judge' | 'secretary' | 'total' | 'status'
 type SortDirection = 'desc' | 'asc' | 'time'
 
 const PAGE_SIZE = 10
@@ -117,6 +118,13 @@ function buildExportFilter(
 
 function getExportFileName() {
   return 'submissions.xlsx'
+}
+
+function getTableShortName(name: string | undefined) {
+  const normalized = (name || '').trim().toLowerCase()
+  if (normalized.includes('capcut')) return 'ST'
+  if (normalized.includes('kể chuyện') || normalized.includes('ke chuyen')) return 'KC'
+  return name || 'N/A'
 }
 
 function parseUtcTimestamp(value: string) {
@@ -210,9 +218,9 @@ export default function TwAdminSubmissions() {
   const [failureReason, setFailureReason] = useState('')
   const [failureError, setFailureError] = useState('')
   const [failureSaving, setFailureSaving] = useState(false)
+  const [, setVoteRankSaving] = useState(false)
+  const [, setVoteRankError] = useState('')
 
-  const [voteRankSaving, setVoteRankSaving] = useState(false)
-  const [voteRankError, setVoteRankError] = useState('')
   const [sortState, setSortState] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'time',
     direction: 'time',
@@ -231,7 +239,12 @@ export default function TwAdminSubmissions() {
   const [importErrors, setImportErrors] = useState<string[]>([])
   const [importRankingSummaries, setImportRankingSummaries] = useState<ImportRankingSummary[] | null>(null)
   const [voteDetailTarget, setVoteDetailTarget] = useState<SubmissionRow | null>(null)
-  const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
+  const canAssignVoteRank = true
+  const [secretaryTarget, setSecretaryTarget] = useState<SubmissionRow | null>(null)
+  const [secretaryPoints, setSecretaryPoints] = useState('')
+  const [secretaryReason, setSecretaryReason] = useState('')
+  const [secretaryError, setSecretaryError] = useState('')
+  const [secretarySaving, setSecretarySaving] = useState(false)
 
   function cycleSort(key: Exclude<SortKey, 'time'>) {
     setSortState((current) => {
@@ -464,6 +477,14 @@ export default function TwAdminSubmissions() {
             direction,
           )
           break
+        case 'secretary': {
+          const leftHas = leftResult?.secretary_points != null
+          const rightHas = rightResult?.secretary_points != null
+          result = leftHas !== rightHas
+            ? (direction === 'desc' ? Number(rightHas) - Number(leftHas) : Number(leftHas) - Number(rightHas))
+            : compareNumber(toNumber(leftResult?.secretary_points), toNumber(rightResult?.secretary_points), direction)
+          break
+        }
         case 'total':
           result = compareNumber(
             toNumber(leftResult?.final_points),
@@ -614,20 +635,6 @@ export default function TwAdminSubmissions() {
     setPublishError('')
     setPublishLoading(false)
   }
-  function openVoteRankDialog(submission: SubmissionRow) {
-    setVoteRankTarget(submission)
-    setVoteRankPosition(submission.vote_rank_position ? String(submission.vote_rank_position) : '')
-    setVoteRankError('')
-    setVoteRankSaving(false)
-  }
-
-  function closeVoteRankDialog() {
-    setVoteRankTarget(null)
-    setVoteRankPosition('')
-    setVoteRankError('')
-    setVoteRankSaving(false)
-  }
-
   async function handleSendPublishNotification(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!publishTarget) return
@@ -674,7 +681,7 @@ export default function TwAdminSubmissions() {
     setMessage('')
 
     try {
-      await api.post('/api/v1/vote-rankings/assign-rank', {
+      await api.post('/api/v1/vote-rankings/import-only', {
         submissionId: voteRankTarget.id,
         rankPosition,
       })
@@ -718,6 +725,59 @@ export default function TwAdminSubmissions() {
       setExporting(false)
     }
   }
+  function closeVoteRankDialog() {
+    setVoteRankTarget(null)
+    setVoteRankPosition('')
+    setVoteRankError('')
+    setVoteRankSaving(false)
+  }
+
+  function openSecretaryDialog(submission: SubmissionRow) {
+    const result = resultBySubmissionId.get(submission.id)
+    setSecretaryTarget(submission)
+    setSecretaryPoints(result?.secretary_points == null ? '' : String(result.secretary_points))
+    setSecretaryReason(result?.secretary_reason || '')
+    setSecretaryError('')
+    setSecretarySaving(false)
+  }
+
+  function closeSecretaryDialog() {
+    setSecretaryTarget(null)
+    setSecretaryPoints('')
+    setSecretaryReason('')
+    setSecretaryError('')
+    setSecretarySaving(false)
+  }
+
+  async function handleSecretarySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!secretaryTarget) return
+    const points = Number(secretaryPoints)
+    const reason = secretaryReason.trim()
+    if (!Number.isFinite(points) || points < 0) {
+      setSecretaryError('Điểm phải là số không âm hợp lệ.')
+      return
+    }
+    if (!reason) {
+      setSecretaryError('Vui lòng nhập lý do của tổ thư ký.')
+      return
+    }
+    setSecretarySaving(true)
+    setSecretaryError('')
+    try {
+      await api.put(`/api/v1/submission_results/submission/${secretaryTarget.id}/secretary-score`, {
+        secretary_points: points,
+        secretary_reason: reason,
+      })
+      closeSecretaryDialog()
+      setMessage('Đã lưu điểm tổ thư ký.')
+      await loadData()
+    } catch (err: unknown) {
+      setSecretaryError(normalizeError(err, 'Không lưu được điểm tổ thư ký.'))
+    } finally {
+      setSecretarySaving(false)
+    }
+  }
 
   async function handleVoteImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -743,6 +803,8 @@ export default function TwAdminSubmissions() {
       setImporting(false)
     }
   }
+
+  void handleVoteRankSubmit
 
   return (
     <main className="vb-page vb-dashboard-page vb-tw-submissions-page">
@@ -900,6 +962,7 @@ export default function TwAdminSubmissions() {
 
         <div className="vb-account-table-wrap">
           <table className="vb-account-table">
+            {false ? (
             <thead>
               <tr>
                 <th>
@@ -935,8 +998,14 @@ export default function TwAdminSubmissions() {
                 </th>
                 <th>
                   <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('judge')}>
-                    Điểm bài thi
+                    Điểm chấm hội đồng
                     <span>{getSortIcon('judge')}</span>
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>
+                    Điểm tổ thư ký
+                    <span>{getSortIcon('secretary')}</span>
                   </button>
                 </th>
                 <th>
@@ -961,13 +1030,32 @@ export default function TwAdminSubmissions() {
                 <th>Hành động</th>
               </tr>
             </thead>
+            ) : (
+              <thead>
+                <tr>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('table')}>Bảng thi <span>{getSortIcon('table')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('author')}>Tên người nộp <span>{getSortIcon('author')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('title')}>Tiêu đề <span>{getSortIcon('title')}</span></button></th>
+                  <th>Bài thi</th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('facebook')}>Link Facebook <span>{getSortIcon('facebook')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('vote')}>Điểm bình chọn <span>{getSortIcon('vote')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('judge')}>Điểm chấm hội đồng <span>{getSortIcon('judge')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>Điểm tổ thư ký <span>{getSortIcon('secretary')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('total')}>Tổng điểm <span>{getSortIcon('total')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('status')}>Đạt yêu cầu <span>{getSortIcon('status')}</span></button></th>
+                  <th>Lý do tổ thư ký</th>
+                  <th>Thời gian nộp</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+            )}
             <tbody>
               {pagedRows.map((row) => {
                 const result = resultBySubmissionId.get(row.id)
                 const complaintStatus = complaintSummaries[row.id]?.complaint_status || 'NOT_STARTED'
                 return (
                   <tr key={row.id}>
-                    <td>{tableNameById.get(row.competition_table_id || 0) || 'N/A'}</td>
+                    <td className="vb-table-code-cell" title={tableNameById.get(row.competition_table_id || 0) || 'N/A'}>{getTableShortName(tableNameById.get(row.competition_table_id || 0))}</td>
                     <td>{row.author_full_name || 'N/A'}</td>
                     <td>{row.title || 'N/A'}</td>
                     <td>
@@ -990,6 +1078,9 @@ export default function TwAdminSubmissions() {
                     </td>
                     <td>{toNumber(result?.vote_converted_points).toFixed(2)}</td>
                     <td>{toNumber(result?.judge_total_points).toFixed(2)}</td>
+                    <td title={result?.secretary_reason || undefined}>
+                      {result?.secretary_points == null ? 'Chưa chấm' : toNumber(result.secretary_points).toFixed(2)}
+                    </td>
                     <td>
                       <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
                     </td>
@@ -1005,10 +1096,8 @@ export default function TwAdminSubmissions() {
                         </label>
                       </div>
                     </td>
-                    <td>
-                      <span className={`vb-status-pill ${complaintStatusClass(complaintStatus)}`}>
-                        {complaintStatusLabel(complaintStatus)}
-                      </span>
+                    <td title={result?.secretary_reason || undefined}>
+                      {result?.secretary_reason || 'Chưa có lý do'}
                     </td>
                     <td>{formatSubmittedAt(row.submitted_at)}</td>
                     <td>
@@ -1033,8 +1122,8 @@ export default function TwAdminSubmissions() {
                           <button
                             type="button"
                             className="vb-tw-btn-muted"
-                            onClick={() => openVoteRankDialog(row)}
-                            disabled={!row.fb_url}
+                            aria-label="Chấm điểm bài thi"
+                            onClick={() => openSecretaryDialog(row)}
                             title={!row.fb_url ? 'Bài thi chưa có Facebook URL' : undefined}
                           >
                             Chấm điểm
@@ -1183,16 +1272,34 @@ export default function TwAdminSubmissions() {
           </div>
         ) : null}
 
-        <VoteRankModal
-          open={Boolean(voteRankTarget)}
-          submission={voteRankTarget}
-          rankPosition={voteRankPosition}
-          onRankPositionChange={setVoteRankPosition}
-          onClose={closeVoteRankDialog}
-          onSubmit={handleVoteRankSubmit}
-          saving={voteRankSaving}
-          error={voteRankError}
-        />
+        {secretaryTarget ? (
+          <div className="vb-modal-backdrop" role="presentation" onClick={closeSecretaryDialog}>
+            <section className="vb-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+              <div className="vb-modal-head">
+                <div>
+                  <p className="vb-overline">Điểm tổ thư ký</p>
+                  <h2>{secretaryTarget.title}</h2>
+                </div>
+                <button type="button" className="vb-modal-close" onClick={closeSecretaryDialog}>Đóng</button>
+              </div>
+              <form className="vb-modal-body vb-modal-form" onSubmit={handleSecretarySubmit}>
+                <div className="vb-field">
+                  <input className="vb-input" type="number" min="0" step="0.01" value={secretaryPoints} onChange={(event) => setSecretaryPoints(event.target.value)} required />
+                  <label className="vb-float-label">Điểm chấm tổ thư ký</label>
+                </div>
+                <div className="vb-field">
+                  <textarea className="vb-input" rows={4} value={secretaryReason} onChange={(event) => setSecretaryReason(event.target.value)} required />
+                  <label className="vb-float-label">Lý do của tổ thư ký</label>
+                </div>
+                {secretaryError ? <p className="vb-form-error">{secretaryError}</p> : null}
+                <div className="vb-modal-actions">
+                  <button type="button" className="vb-tw-btn-muted" onClick={closeSecretaryDialog} disabled={secretarySaving}>Hủy</button>
+                  <button type="submit" className="vb-tw-btn-primary" disabled={secretarySaving}>{secretarySaving ? 'Đang lưu...' : 'Lưu điểm'}</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        ) : null}
 
         {failureTarget ? (
           <div className="vb-modal-backdrop" role="presentation" onClick={closeFailureDialog}>

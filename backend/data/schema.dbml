@@ -222,6 +222,10 @@ Table submission_results {
   judge_total_points numeric(8,2) [not null, default: 0]
   vote_converted_points numeric(8,2) [not null, default: 0]
   final_points numeric(8,2) [not null, default: 0]
+  secretary_points numeric(12,2)
+  secretary_reason text
+  secretary_updated_at timestamptz
+  secretary_updated_by_user_id bigint [ref: > users.id]
 
   finalized_at timestamptz
 }

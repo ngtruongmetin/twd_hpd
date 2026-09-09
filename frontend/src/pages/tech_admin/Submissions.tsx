@@ -1,9 +1,8 @@
 import axios from 'axios'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 import { useAuth } from '../../context/useAuth'
-import VoteRankModal from '../../components/VoteRankModal'
 
 type SubmissionRow = {
   id: number
@@ -71,7 +70,9 @@ function getExportFileName() {
 }
 
 export default function TechAdminSubmissions() {
-  const { user } = useAuth()
+  useAuth()
+  const canAssignVoteRank = false
+  const openVoteRankDialog = (_submission?: SubmissionRow) => {}
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [results, setResults] = useState<ResultRow[]>([])
@@ -85,11 +86,6 @@ export default function TechAdminSubmissions() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
   const [sortMode, setSortMode] = useState<'time' | 'score-desc'>('time')
-  const [voteRankTarget, setVoteRankTarget] = useState<SubmissionRow | null>(null)
-  const [voteRankPosition, setVoteRankPosition] = useState('')
-  const [voteRankSaving, setVoteRankSaving] = useState(false)
-  const [voteRankError, setVoteRankError] = useState('')
-  const canAssignVoteRank = user?.role_code === 'TECH_ADMIN' || user?.role_code === 'TW_ADMIN'
 
   async function loadData() {
     setLoading(true)
@@ -216,7 +212,7 @@ export default function TechAdminSubmissions() {
     }
   }
 
-  function openVoteRankDialog(submission: SubmissionRow) {
+  /* function openVoteRankDialog(submission: SubmissionRow) {
     setVoteRankTarget(submission)
     setVoteRankPosition(submission.vote_rank_position ? String(submission.vote_rank_position) : '')
     setVoteRankError('')
@@ -245,7 +241,7 @@ export default function TechAdminSubmissions() {
     setMessage('')
 
     try {
-      await api.post('/api/v1/vote-rankings/assign-rank', {
+      await api.post('/api/v1/vote-rankings/import-only', {
         submissionId: voteRankTarget.id,
         rankPosition,
       })
@@ -258,6 +254,8 @@ export default function TechAdminSubmissions() {
       setVoteRankSaving(false)
     }
   }
+
+  } */
 
   async function handleExportSubmissions() {
     setExporting(true)
@@ -406,7 +404,7 @@ export default function TechAdminSubmissions() {
                 <th>Bài thi</th>
                 <th>Link Facebook</th>
                 <th>Điểm bình chọn</th>
-                <th>Điểm bài thi</th>
+                <th>Điểm chấm hội đồng</th>
                 <th>
                   <button
                     type="button"
@@ -500,16 +498,6 @@ export default function TechAdminSubmissions() {
           </button>
         </div>
 
-        <VoteRankModal
-          open={Boolean(voteRankTarget)}
-          submission={voteRankTarget}
-          rankPosition={voteRankPosition}
-          onRankPositionChange={setVoteRankPosition}
-          onClose={closeVoteRankDialog}
-          onSubmit={handleVoteRankSubmit}
-          saving={voteRankSaving}
-          error={voteRankError}
-        />
       </section>
     </main>
   )

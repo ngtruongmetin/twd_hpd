@@ -527,7 +527,7 @@ class ExportController {
                         { header: "Tiêu đề", key: "title", width: 30 },
                         { header: "Tác giả", key: "author_full_name", width: 25 },
                         { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
-                        { header: "Điểm giám khảo", key: "judge_total_points", width: 18 },
+                        { header: "Điểm chấm hội đồng", key: "judge_total_points", width: 18 },
                         { header: "Điểm bình chọn", key: "vote_converted_points", width: 18 },
                         { header: "Tổng điểm", key: "final_points", width: 18 },
                         { header: "Ngày hoàn thiện", key: "finalized_at", width: 20 },

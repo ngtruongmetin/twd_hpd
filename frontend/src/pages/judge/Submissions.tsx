@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Navbar from '../../components/Navbar'
 import { api } from '../../api/api'
 import { useAuth } from '../../context/useAuth'
-import ComplaintChatModal, { type ComplaintSummary } from '../../components/ComplaintChatModal'
-import { type ComplaintStatus } from '../../components/complaintStatus'
 
 type SubmissionRow = {
   id: number
@@ -45,6 +43,8 @@ type SubmissionResultRow = {
   judge_total_points: number | string
   vote_converted_points: number | string
   final_points: number | string
+  secretary_points?: number | string | null
+  secretary_reason?: string | null
 }
 type SubmissionScoreResponse = {
   scores: JudgeScoreRow[]
@@ -80,6 +80,29 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(n) ? n : 0
 }
 
+type SortKey = 'table' | 'author' | 'secretary' | 'vote' | 'council' | 'total'
+type SortDirection = 'asc' | 'desc' | 'time'
+
+function getTableShortName(name: string | undefined) {
+  const normalized = (name || '').trim().toLowerCase()
+  if (normalized.includes('capcut')) return 'ST'
+  if (normalized.includes('kể chuyện') || normalized.includes('ke chuyen')) return 'KC'
+  return name || 'N/A'
+}
+
+function compareText(left: string, right: string, direction: Exclude<SortDirection, 'time'>) {
+  const result = left.localeCompare(right, 'vi', { sensitivity: 'base' })
+  return direction === 'desc' ? -result : result
+}
+
+function compareNumber(left: number, right: number, direction: Exclude<SortDirection, 'time'>) {
+  return direction === 'desc' ? right - left : left - right
+}
+
+function defaultDirection(key: SortKey): Exclude<SortDirection, 'time'> {
+  return key === 'table' || key === 'author' ? 'asc' : 'desc'
+}
+
 
 
 function statusClass(hasScores: boolean) {
@@ -90,7 +113,6 @@ export default function JudgeSubmissions() {
   const { user } = useAuth()
   const judgeUserId = Number(user?.id || 0)
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
-  const [complaintSummaries, setComplaintSummaries] = useState<Record<number, ComplaintSummary>>({})
   const [tables, setTables] = useState<CompetitionTableRow[]>([])
   const [results, setResults] = useState<SubmissionResultRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -107,26 +129,21 @@ export default function JudgeSubmissions() {
   const [criteriaDrafts, setCriteriaDrafts] = useState<CriterionDraft[]>([])
   const [modalError, setModalError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<number, string>>({})
-  const [complaintTarget, setComplaintTarget] = useState<SubmissionRow | null>(null)
+  const [sortState, setSortState] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'table', direction: 'asc' })
+  const secretarySortDesc = sortState.key === 'secretary' && sortState.direction === 'desc'
 
   async function loadData() {
     setLoading(true)
     setError('')
     try {
-      const [submissionRes, tableRes, resultsRes, complaintRes] = await Promise.all([
+      const [submissionRes, tableRes, resultsRes] = await Promise.all([
         api.get('/api/v1/submissions'),
         api.get('/api/v1/competition_tables'),
         api.get('/api/v1/submission_results'),
-        api.get('/api/v1/complaints'),
       ])
       setSubmissions((submissionRes.data?.data ?? []) as SubmissionRow[])
       setTables((tableRes.data?.data ?? []) as CompetitionTableRow[])
       setResults((resultsRes.data?.data ?? []) as SubmissionResultRow[])
-      const nextComplaintSummaries: Record<number, ComplaintSummary> = {}
-      ;(complaintRes.data?.data ?? []).forEach((summary: ComplaintSummary) => {
-        nextComplaintSummaries[summary.submission_id] = summary
-      })
-      setComplaintSummaries(nextComplaintSummaries)
     } catch (err: unknown) {
       setError(normalizeError(err, 'Không tải được danh sách bài dự thi.'))
     } finally {
@@ -155,7 +172,7 @@ export default function JudgeSubmissions() {
   const statusRows = useMemo(
     () =>
       submissions.filter(
-        (row) => tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter,
+        (row) => Boolean(row.fb_url?.trim()) && (tableFilter === 'ALL' || String(row.competition_table_id || '') === tableFilter),
       ),
     [submissions, tableFilter],
   )
@@ -173,11 +190,57 @@ export default function JudgeSubmissions() {
     })
   }, [statusRows, query, submissionStatusMap, tableNameById])
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  function cycleSort(key: SortKey) {
+    setSortState((current) => {
+      if (current.key !== key) return { key, direction: defaultDirection(key) }
+      const defaultValue = defaultDirection(key)
+      if (current.direction === defaultValue) return { key, direction: defaultValue === 'asc' ? 'desc' : 'asc' }
+      if (current.direction !== 'time') return { key, direction: 'time' }
+      return { key, direction: defaultValue }
+    })
+  }
+
+  function sortIcon(key: SortKey) {
+    if (sortState.key !== key || sortState.direction === 'time') return '↕'
+    return sortState.direction === 'desc' ? '↓' : '↑'
+  }
+
+  const displayedRows = useMemo(() => {
+    if (sortState.direction === 'time') return filteredRows
+    const direction = sortState.direction
+    return [...filteredRows].sort((left, right) => {
+      const leftResult = resultBySubmissionId.get(left.id)
+      const rightResult = resultBySubmissionId.get(right.id)
+      let result = 0
+      switch (sortState.key) {
+        case 'table':
+          result = compareText(getTableShortName(tableNameById.get(left.competition_table_id || 0)), getTableShortName(tableNameById.get(right.competition_table_id || 0)), direction)
+          break
+        case 'author':
+          result = compareText(left.author_full_name || '', right.author_full_name || '', direction)
+          break
+        case 'secretary':
+          result = compareNumber(toNumber(leftResult?.secretary_points), toNumber(rightResult?.secretary_points), direction)
+          break
+        case 'vote':
+          result = compareNumber(toNumber(leftResult?.vote_converted_points), toNumber(rightResult?.vote_converted_points), direction)
+          break
+        case 'council':
+          result = compareNumber(toNumber(leftResult?.judge_total_points), toNumber(rightResult?.judge_total_points), direction)
+          break
+        case 'total':
+          result = compareNumber(toNumber(leftResult?.final_points), toNumber(rightResult?.final_points), direction)
+          break
+      }
+      return result || right.id - left.id
+    })
+  }, [filteredRows, resultBySubmissionId, sortState, tableNameById])
+
+  const totalPages = Math.max(1, Math.ceil(displayedRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const pagedRows = useMemo(
-    () => filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filteredRows, safePage],
+    () => displayedRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [displayedRows, safePage],
   )
 
   useEffect(() => {
@@ -351,27 +414,6 @@ export default function JudgeSubmissions() {
     }
   }
 
-  function handleComplaintStatusChange(submissionId: number, status: ComplaintStatus) {
-    setComplaintSummaries((current) => ({
-      ...current,
-      [submissionId]: {
-        ...(current[submissionId] || {
-          submission_id: submissionId,
-          message_count: 0,
-          last_message_at: null,
-          last_sender_user_id: null,
-          last_sender_full_name: null,
-          last_sender_username: null,
-          last_sender_role: null,
-          last_sender_role_name: null,
-        }),
-        complaint_status: status,
-      },
-    }))
-  }
-
-
-
   return (
     <main className="vb-page vb-dashboard-page vb-tw-submissions-page">
       <Navbar />
@@ -430,19 +472,43 @@ export default function JudgeSubmissions() {
 
         <div className="vb-account-table-wrap">
           <table className="vb-account-table">
+            {false ? (
             <thead>
               <tr>
                 <th>Bảng thi</th>
                 <th>Tiêu đề</th>
                 <th>Link bài thi</th>
                 <th>Link Facebook</th>
+                <th>Điểm chấm hội đồng</th>
+                <th>
+                  <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>
+                    Điểm tổ thư ký <span>{secretarySortDesc ? '↓' : '↑'}</span>
+                  </button>
+                </th>
                 <th>Điểm bình chọn</th>
-                <th>Điểm bài thi</th>
+                <th>Điểm chấm hội đồng</th>
                 <th>Tổng điểm</th>
                 <th>Trạng thái chấm</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
+            ) : (
+              <thead>
+                <tr>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('table')}>Bảng thi <span>{sortIcon('table')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('author')}>Tên người nộp <span>{sortIcon('author')}</span></button></th>
+                  <th>Link bài thi</th>
+                  <th>Link Facebook</th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>Điểm chấm tổ thư ký <span>{sortIcon('secretary')}</span></button></th>
+                  <th>Lý do tổ thư ký</th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('vote')}>Điểm bình chọn <span>{sortIcon('vote')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('council')}>Điểm chấm hội đồng <span>{sortIcon('council')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('total')}>Tổng điểm bài thi <span>{sortIcon('total')}</span></button></th>
+                  <th>Trạng thái chấm</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+            )}
             <tbody>
               {pagedRows.map((row) => {
                 const hasScores = submissionStatusMap[row.id]?.hasScores ?? false
@@ -453,8 +519,8 @@ export default function JudgeSubmissions() {
                   ''
                 return (
                   <tr key={row.id}>
-                    <td>{tableNameById.get(row.competition_table_id || 0) || 'N/A'}</td>
-                    <td>{row.title || 'N/A'}</td>
+                    <td className="vb-table-code-cell" title={tableNameById.get(row.competition_table_id || 0) || 'N/A'}>{getTableShortName(tableNameById.get(row.competition_table_id || 0))}</td>
+                    <td>{row.author_full_name || 'N/A'}</td>
                     <td>
                       {row.video_url ? (
                         <a className="vb-tw-btn-link" href={row.video_url} target="_blank" rel="noreferrer">
@@ -481,6 +547,13 @@ export default function JudgeSubmissions() {
                       )}
                     </td>
                     <td>
+                      {result?.secretary_points == null ? 'Chưa chấm' : toNumber(result.secretary_points).toFixed(2)}
+                    </td>
+                    <td title={result?.secretary_reason || undefined}>
+                      {result?.secretary_reason || 'Chưa có lý do'}
+                    </td>
+
+                    <td>
                       {toNumber(result?.vote_converted_points).toFixed(2)}
                     </td>
 
@@ -501,15 +574,6 @@ export default function JudgeSubmissions() {
                       </span>
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="vb-tw-btn-muted"
-                        onClick={() => setComplaintTarget(row)}
-                      >
-                        {complaintSummaries[row.id]?.complaint_status === 'NOT_STARTED'
-                          ? 'Chưa có khiếu nại'
-                          : 'Phản hồi khiếu nại'}
-                      </button>
                       <button
                         type="button"
                         className="vb-tw-btn-primary"
@@ -546,16 +610,6 @@ export default function JudgeSubmissions() {
         </div>
       </section>
 
-      {complaintTarget ? (
-        <ComplaintChatModal
-          submissionId={complaintTarget.id}
-          submissionTitle={complaintTarget.title}
-          currentUserId={user?.id}
-          currentUserRole={user?.role_code}
-          onClose={() => setComplaintTarget(null)}
-          onStatusChange={handleComplaintStatusChange}
-        />
-      ) : null}
 
       {modalOpen && selectedSubmission ? (
         <div className="vb-modal-backdrop" role="presentation" onClick={resetModalState}>
