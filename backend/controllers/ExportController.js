@@ -329,7 +329,6 @@ class ExportController {
                         ...row,
                         stt: index + 1,
                         submitted_at: ExportController.formatUtc7DateTime(row.submitted_at),
-                        updated_at: ExportController.formatUtc7DateTime(row.updated_at),
                     })),
                 },
             };
@@ -377,7 +376,8 @@ class ExportController {
             COALESCE(m.interaction_count, 0) AS interaction_count,
             COALESCE(m.share_count, 0) AS share_count
         FROM submissions
-        LEFT JOIN submission_vote_metrics m ON m.submission_id = submissions.id${where}`;
+        LEFT JOIN submission_vote_metrics m ON m.submission_id = submissions.id${where}
+        ORDER BY datetime(submissions.submitted_at) ASC, submissions.id ASC`;
 
         db.all(query, params, (err, rows) => {
             if (err) {
@@ -391,28 +391,19 @@ class ExportController {
                 titleLine2: "Danh sách bài thi",
                 matrix: {
                     columns: [
-                        { header: "STT", key: "stt", width: 10 },
-                        { header: "ID", key: "id", width: 10 },
-                        { header: "Season ID", key: "season_id", width: 15 },
-                        { header: "Competition Table ID", key: "competition_table_id", width: 20 },
-                        { header: "Submitted By", key: "submitted_by_user_id", width: 15 },
-                        { header: "Tiêu đề", key: "title", width: 30 },
-                        { header: "Mô tả", key: "description", width: 40 },
-                        { header: "Video URL", key: "video_url", width: 35 },
-                        { header: "Ghi chú", key: "note", width: 30 },
+                        { header: "STT", key: "stt", width: 8 },
+                        { header: "Tiêu đề", key: "title", width: 35 },
                         { header: "Tác giả", key: "author_full_name", width: 25 },
                         { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
-                        { header: "Xã/Phường", key: "author_ward_name", width: 20 },
-                        { header: "Trường học", key: "author_school_name", width: 25 },
-                        { header: "Thành viên khác", key: "other_members", width: 25 },
-                        { header: "Drive File ID", key: "drive_file_id", width: 30 },
-                        { header: "Drive Public", key: "drive_is_public", width: 12 },
-                        { header: "FB URL", key: "fb_url", width: 35 },
-                        { header: "Không đạt", key: "is_failed", width: 12 },
-                        { header: "Lý do không đạt", key: "failed_reason", width: 35 },
+                        { header: "Xã/Phường", key: "author_ward_name", width: 22 },
+                        { header: "Trường học", key: "author_school_name", width: 30 },
+                        { header: "Thành viên khác", key: "other_members", width: 30 },
+                        { header: "Video", key: "video_url", width: 40 },
+                        { header: "Facebook", key: "fb_url", width: 40 },
+                        { header: "Ngày nộp", key: "submitted_at", width: 18 },
                         { header: "Trạng thái", key: "status", width: 15 },
-                        { header: "Ngày nộp", key: "submitted_at", width: 20 },
-                        { header: "Cập nhật", key: "updated_at", width: 20 },
+                        { header: "Lượt tương tác", key: "interaction_count", width: 18 },
+                        { header: "Lượt share", key: "share_count", width: 15 },
                     ],
                     rows: rows.map((row, index) => ({
                         ...row,
@@ -422,12 +413,6 @@ class ExportController {
                     })),
                 },
             };
-
-            dataExport.matrix.columns.push(
-                { header: "Lượt tương tác", key: "interaction_count", width: 18 },
-                { header: "Lượt share", key: "share_count", width: 15 },
-            );
-
             DataModel.ExportData(dataExport, req, res);
         });
     }

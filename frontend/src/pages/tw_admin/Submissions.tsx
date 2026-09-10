@@ -456,7 +456,13 @@ export default function TwAdminSubmissions() {
   }, [submissions, tableFilter, provinceFilter, facebookFilter, statusFilter, complaintStatusFilter, complaintSummaries, query, tableNameById])
 
   const displayedRows = useMemo(() => {
-    if (sortState.direction === 'time' || sortState.key === 'time') return filteredRows
+    if (sortState.key === 'time') {
+      return [...filteredRows].sort(
+        (left, right) =>
+          parseUtcTimestamp(right.submitted_at || '') -
+          parseUtcTimestamp(left.submitted_at || ''),
+      )
+    }
     const direction = sortState.direction as Exclude<SortDirection, 'time'>
 
     const sortedRows = [...filteredRows].sort((left, right) => {
