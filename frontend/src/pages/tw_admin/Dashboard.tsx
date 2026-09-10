@@ -12,6 +12,7 @@ type ProvinceApiItem = {
 }
 
 type ProvinceStatRow = {
+  province_code: number
   province_key: string
   province_name: string
   school_count: number
@@ -94,23 +95,7 @@ const quickActions = [
   },
 ]
 
-function normalizeText(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\u0111\u0110]/g, 'd')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
-function normalizeProvinceKey(value: string) {
-  let text = normalizeText(value)
-  text = text.replace(/^(tp|thanh pho)\s+/g, '')
-  text = text.replace(/\s+city$/g, '')
-  return text
-}
 
 function normalizeError(err: unknown, fallback: string) {
   if (axios.isAxiosError(err)) return err.response?.data?.message || fallback
@@ -169,10 +154,15 @@ export default function TwAdminDashboard() {
   }, [])
 
   const displayedRows = useMemo(() => {
-    const statsByProvince = new Map(provinceStats.map((row) => [normalizeProvinceKey(row.province_key || row.province_name), row]))
+    const statsByProvince = new Map(
+      provinceStats.map((row) => [
+        row.province_code,
+        row,
+      ])
+    )
 
     return provinceOptions.map((province, index) => {
-      const stat = statsByProvince.get(normalizeProvinceKey(province.name))
+      const stat = statsByProvince.get(province.code)
 
       return {
         stt: index + 1,

@@ -3,12 +3,17 @@ function normalizeText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[\u0111\u0110]/g, "d")
-    .replace(/[^a-z0-9\s]/g, " ")
     .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
+console.log("🔥 PROVINCES.JS LOADED");
 
+console.log(
+  "🔥 PROVINCES normalize:",
+  normalizeText("Thanh Hóa")
+);
 const FALLBACK_PROVINCES = [
   { code: 4, name: "Cao Bằng" },
   { code: 20, name: "Lạng Sơn" },

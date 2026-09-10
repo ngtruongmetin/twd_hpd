@@ -20,8 +20,8 @@ function normalizeText(value) {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[\u0111\u0110]/g, "d")
-        .replace(/[^a-z0-9\s]/g, " ")
         .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
 }

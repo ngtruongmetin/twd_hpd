@@ -37,8 +37,8 @@ function normalizeText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[\u0111\u0110]/g, "d")
-    .replace(/[^a-z0-9\s]/g, " ")
     .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -46,7 +46,7 @@ function normalizeText(value) {
 function normalizeProvinceKey(value) {
   let text = normalizeText(value);
 
-  text = text.replace(/^(tp|thanh pho)\s+/g, "");
+  text = text.replace(/^(tinh|tp|thanh pho)\s+/g, "");
   text = text.replace(/\s+city$/g, "");
 
   return text;
@@ -86,10 +86,55 @@ function getVirtualTableCodeFromTable(table) {
 }
 
 async function fetchWardsForProvince(provinceCode) {
-  const response = await fetch(`https://provinces.open-api.vn/api/v2/p/${provinceCode}?depth=2`);
-  if (!response.ok) throw new Error("Không tải được danh mục phường/xã");
+  const code = Number(provinceCode);
+  if (!Number.isInteger(code) || code <= 0) {
+    throw new Error("Mã tỉnh không hợp lệ");
+  }
+
+  const response = await fetch(
+    `https://provinces.open-api.vn/api/v2/p/${code}?depth=2`
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Không tải được danh mục phường/xã cho tỉnh ${code} (HTTP ${response.status})`
+    );
+  }
+
   const data = await response.json();
-  return Array.isArray(data?.wards) ? data.wards : [];
+
+  let wards = Array.isArray(data?.wards) ? data.wards : [];
+
+  // Một số response có thể không chứa wards dù request thành công.
+  // Fallback lấy toàn bộ đơn vị cấp xã rồi lọc theo province_code.
+  if (wards.length === 0) {
+    const wardResponse = await fetch(
+      "https://provinces.open-api.vn/api/v2/w/"
+    );
+
+    if (!wardResponse.ok) {
+      throw new Error(
+        `Không tải được danh mục xã/phường (HTTP ${wardResponse.status})`
+      );
+    }
+
+    const wardData = await wardResponse.json();
+
+    if (!Array.isArray(wardData)) {
+      throw new Error("Danh mục xã/phường không đúng định dạng");
+    }
+
+    wards = wardData.filter(
+      (item) => Number(item?.province_code) === code
+    );
+  }
+
+  // Chỉ chấp nhận ward thực sự thuộc provinceCode.
+  return wards.filter(
+    (item) =>
+      item &&
+      Number(item.province_code) === code
+  );
 }
 
 function makePreviewSummary(rows) {
@@ -298,10 +343,28 @@ class TwAdminController {
           try {
             if (!wardCache.has(province.code)) {
               const wards = await fetchWardsForProvince(province.code);
-              wardCache.set(province.code, new Map(wards.map((item) => [normalizeText(item.name), item])));
+
+              wardCache.set(
+                province.code,
+                new Map(
+                  wards.map((item) => [
+                    normalizeText(item.name),
+                    item,
+                  ])
+                )
+              );
             }
-            ward = wardCache.get(province.code).get(normalizeText(wardInput)) || null;
-            if (!ward) errors.push("Xã/Phường không thuộc Tỉnh/Thành đã chọn.");
+
+            const wardMap = wardCache.get(province.code);
+
+            ward = wardMap.get(normalizeText(wardInput)) || null;
+
+            if (
+              !ward ||
+              Number(ward.province_code) !== Number(province.code)
+            ) {
+              errors.push("Xã/Phường không thuộc Tỉnh/Thành đã chọn.");
+            }
           } catch {
             errors.push("Không thể đối chiếu danh mục Xã/Phường.");
           }
@@ -532,13 +595,23 @@ class TwAdminController {
         },
       });
     } catch (error) {
-      await dbRun("ROLLBACK").catch(() => {});
+      await dbRun("ROLLBACK").catch(() => { });
       console.error("[TwAdminController] importVoteMetrics failed:", error);
       return res.status(500).json({ success: false, message: "Không thể cập nhật file bình chọn" });
     }
   }
   static async getProvinceStatistics(req, res) {
     try {
+      console.log(
+        "[DEBUG PROVINCE] Thanh Hóa =>",
+        normalizeText("Thanh Hóa"),
+        normalizeProvinceKey("Thanh Hóa")
+      );
+
+      console.log(
+        "[DEBUG PROVINCE] FALLBACK Thanh Hóa =>",
+        FALLBACK_PROVINCES.find((p) => p.code === 38)
+      );
       const rows = await dbAll(
         `
         SELECT
@@ -558,53 +631,108 @@ class TwAdminController {
 
       const groups = new Map();
 
+      const provinceByKey = new Map(
+        FALLBACK_PROVINCES.map((province) => [
+          normalizeProvinceKey(province.name),
+          province,
+        ])
+      );
+
       rows.forEach((row) => {
-        const provinceLabel = prettyLabel(row.author_province_name || row.user_province_name);
+        const provinceLabel = prettyLabel(
+          row.author_province_name || row.user_province_name
+        );
+
         const provinceKey = normalizeProvinceKey(provinceLabel);
 
-        if (!provinceKey) {
+        // Chỉ thống kê những record map được vào 34 tỉnh/thành chuẩn.
+        const province = provinceByKey.get(provinceKey);
+
+        if (!province) {
           return;
         }
 
-        let group = groups.get(provinceKey);
+        const canonicalKey = normalizeProvinceKey(province.name);
+
+        let group = groups.get(canonicalKey);
+
         if (!group) {
-          group = createGroup(provinceKey);
-          groups.set(provinceKey, group);
+          group = createGroup(canonicalKey);
+          groups.set(canonicalKey, group);
         }
 
         group.total_submissions += 1;
-        group.province_name_counts.set(provinceLabel, (group.province_name_counts.get(provinceLabel) || 0) + 1);
+
+        group.province_name_counts.set(
+          province.name,
+          (group.province_name_counts.get(province.name) || 0) + 1
+        );
 
         const isFailed = Number(row.is_failed) === 1;
+
         if (isFailed) {
           group.failed_submissions += 1;
         } else {
           group.passed_submissions += 1;
         }
 
-        const wardLabel = prettyLabel(row.author_ward_name || row.user_ward_name);
+        const wardLabel = prettyLabel(
+          row.author_ward_name || row.user_ward_name
+        );
+
         if (wardLabel) {
-          group.ward_counts.set(wardLabel, (group.ward_counts.get(wardLabel) || 0) + 1);
+          group.ward_counts.set(
+            wardLabel,
+            (group.ward_counts.get(wardLabel) || 0) + 1
+          );
         }
 
-        const schoolLabel = prettyLabel(row.author_school_name || row.user_school_name);
+        const schoolLabel = prettyLabel(
+          row.author_school_name || row.user_school_name
+        );
+
         const schoolKey = normalizeSchoolKey(schoolLabel);
+
         if (schoolKey) {
           let schoolGroup = group.school_groups.get(schoolKey);
+
           if (!schoolGroup) {
             schoolGroup = createSchoolGroup();
             group.school_groups.set(schoolKey, schoolGroup);
           }
 
           schoolGroup.count += 1;
+
           if (schoolLabel) {
-            schoolGroup.display_counts.set(schoolLabel, (schoolGroup.display_counts.get(schoolLabel) || 0) + 1);
+            schoolGroup.display_counts.set(
+              schoolLabel,
+              (schoolGroup.display_counts.get(schoolLabel) || 0) + 1
+            );
           }
         }
       });
 
-      const data = Array.from(groups.values())
-        .map((group) => {
+      const data = FALLBACK_PROVINCES
+        .map((province) => {
+          const provinceKey = normalizeProvinceKey(province.name);
+          const group = groups.get(provinceKey);
+
+          if (!group) {
+            return {
+              province_code: province.code,
+              province_key: provinceKey,
+              province_name: province.name,
+              school_count: SCHOOL_COUNTS[province.code] || 0,
+              participating_school_count: 0,
+              total_submissions: 0,
+              failed_submissions: 0,
+              passed_submissions: 0,
+              pass_rate: 0,
+              participation_rate: 0,
+              top_ward_name: null,
+              top_school_name: null,
+            };
+          }
           const passRate = group.total_submissions > 0
             ? (group.passed_submissions / group.total_submissions) * 100
             : 0;
@@ -633,8 +761,12 @@ class TwAdminController {
           }
 
           return {
+            province_code: province.code,
             province_key: group.province_key,
-            province_name: getDisplayLabelFromCounts(group.province_name_counts, group.province_key),
+            province_name: getDisplayLabelFromCounts(
+              group.province_name_counts,
+              province.name
+            ),
             school_count: schoolCount,
             participating_school_count: participatingSchoolCount,
             total_submissions: group.total_submissions,
@@ -662,5 +794,9 @@ class TwAdminController {
     }
   }
 }
-
+console.log("🔥 LOADED TwAdminController.js");
+console.log(
+  "🔥 TEST normalizeText Thanh Hóa:",
+  normalizeText("Thanh Hóa")
+);
 module.exports = TwAdminController;
