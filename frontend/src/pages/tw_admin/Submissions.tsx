@@ -80,7 +80,7 @@ type VirtualImportJob = {
   error_details?: Array<{ row: number; message: string }>
 }
 
-type SortKey = 'time' | 'table' | 'author' | 'title' | 'submittedAt' | 'facebook' | 'vote' | 'judge' | 'secretary' | 'total' | 'status'
+type SortKey = 'time' | 'table' | 'author' | 'title' | 'submittedAt' | 'facebook' | 'vote' | 'secretary' | 'total' | 'status'
 type SortDirection = 'desc' | 'asc' | 'time'
 
 const PAGE_SIZE = 10
@@ -499,13 +499,6 @@ export default function TwAdminSubmissions() {
           result = compareNumber(
             toNumber(leftResult?.vote_converted_points),
             toNumber(rightResult?.vote_converted_points),
-            direction,
-          )
-          break
-        case 'judge':
-          result = compareNumber(
-            toNumber(leftResult?.judge_total_points),
-            toNumber(rightResult?.judge_total_points),
             direction,
           )
           break
@@ -1082,14 +1075,8 @@ export default function TwAdminSubmissions() {
                     </button>
                   </th>
                   <th>
-                    <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('judge')}>
-                      Điểm chấm hội đồng
-                      <span>{getSortIcon('judge')}</span>
-                    </button>
-                  </th>
-                  <th>
                     <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>
-                      Điểm tổ thư ký
+                      Điểm ban giám khảo
                       <span>{getSortIcon('secretary')}</span>
                     </button>
                   </th>
@@ -1124,11 +1111,10 @@ export default function TwAdminSubmissions() {
                   <th>Bài thi</th>
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('facebook')}>Link Facebook <span>{getSortIcon('facebook')}</span></button></th>
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('vote')}>Điểm bình chọn <span>{getSortIcon('vote')}</span></button></th>
-                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('judge')}>Điểm chấm hội đồng <span>{getSortIcon('judge')}</span></button></th>
-                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>Điểm tổ thư ký <span>{getSortIcon('secretary')}</span></button></th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>Điểm ban giám khảo <span>{getSortIcon('secretary')}</span></button></th>
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('total')}>Tổng điểm <span>{getSortIcon('total')}</span></button></th>
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('status')}>Đạt yêu cầu <span>{getSortIcon('status')}</span></button></th>
-                  <th>Lý do tổ thư ký</th>
+                  <th>Lý do điểm ban giám khảo</th>
                   <th>Thời gian nộp</th>
                   <th>Hành động</th>
                 </tr>
@@ -1162,7 +1148,6 @@ export default function TwAdminSubmissions() {
                       )}
                     </td>
                     <td>{toNumber(result?.vote_converted_points).toFixed(2)}</td>
-                    <td>{toNumber(result?.judge_total_points).toFixed(2)}</td>
                     <td title={result?.secretary_reason || undefined}>
                       {result?.secretary_points == null ? 'Chưa chấm' : toNumber(result.secretary_points).toFixed(2)}
                     </td>
@@ -1362,7 +1347,7 @@ export default function TwAdminSubmissions() {
             <section className="vb-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <div className="vb-modal-head">
                 <div>
-                  <p className="vb-overline">Điểm tổ thư ký</p>
+                  <p className="vb-overline">Điểm ban giám khảo</p>
                   <h2>{secretaryTarget.title}</h2>
                 </div>
                 <button type="button" className="vb-modal-close" onClick={closeSecretaryDialog}>Đóng</button>
@@ -1370,11 +1355,11 @@ export default function TwAdminSubmissions() {
               <form className="vb-modal-body vb-modal-form" onSubmit={handleSecretarySubmit}>
                 <div className="vb-field">
                   <input className="vb-input" type="number" min="0" step="0.01" value={secretaryPoints} onChange={(event) => setSecretaryPoints(event.target.value)} required />
-                  <label className="vb-float-label">Điểm chấm tổ thư ký</label>
+                  <label className="vb-float-label">Điểm ban giám khảo</label>
                 </div>
                 <div className="vb-field">
                   <textarea className="vb-input" rows={4} value={secretaryReason} onChange={(event) => setSecretaryReason(event.target.value)} required />
-                  <label className="vb-float-label">Lý do của tổ thư ký</label>
+                  <label className="vb-float-label">Lý do điểm ban giám khảo</label>
                 </div>
                 {secretaryError ? <p className="vb-form-error">{secretaryError}</p> : null}
                 <div className="vb-modal-actions">

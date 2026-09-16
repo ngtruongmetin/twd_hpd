@@ -463,7 +463,7 @@ export default function JudgeSubmissions() {
                 <th>Điểm chấm hội đồng</th>
                 <th>
                   <button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>
-                    Điểm tổ thư ký <span>{secretarySortDesc ? '↓' : '↑'}</span>
+                    Điểm ban giám khảo <span>{secretarySortDesc ? '↓' : '↑'}</span>
                   </button>
                 </th>
                 <th>Điểm bình chọn</th>
@@ -480,8 +480,8 @@ export default function JudgeSubmissions() {
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('author')}>Tên người nộp <span>{sortIcon('author')}</span></button></th>
                   <th>Link bài thi</th>
                   <th>Link Facebook</th>
-                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>Điểm chấm tổ thư ký <span>{sortIcon('secretary')}</span></button></th>
-                  <th>Lý do tổ thư ký</th>
+                  <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('secretary')}>Điểm ban giám khảo <span>{sortIcon('secretary')}</span></button></th>
+                  <th>Lý do điểm ban giám khảo</th>
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('vote')}>Điểm bình chọn <span>{sortIcon('vote')}</span></button></th>
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('council')}>Điểm chấm hội đồng <span>{sortIcon('council')}</span></button></th>
                   <th><button type="button" className="vb-table-sort-button" onClick={() => cycleSort('total')}>Tổng điểm bài thi <span>{sortIcon('total')}</span></button></th>

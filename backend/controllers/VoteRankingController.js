@@ -1,4 +1,5 @@
 const db = require("../utils/db");
+const { calculateFinalPoints } = require("../services/ScoreTotalService");
 
 function dbGet(sql, params = []) {
     return new Promise((resolve, reject) => {
@@ -33,15 +34,6 @@ const convertedPointsByRank = {
     4: 20,
     5: 10,
 };
-
-async function getJudgeTotalPoints(submissionId) {
-    const row = await dbGet(
-        "SELECT COALESCE(SUM(points), 0) AS total_points FROM judge_scores WHERE submission_id = ?",
-        [submissionId]
-    );
-
-    return Number(row?.total_points || 0);
-}
 
 class VoteRankingController {
     static async assignRank(req, res) {
@@ -91,7 +83,7 @@ class VoteRankingController {
             await dbRun(
                 `UPDATE submission_results
                 SET vote_converted_points = 0,
-                    final_points = judge_total_points,
+                    final_points = COALESCE(secretary_points, 0),
                     finalized_at = CURRENT_TIMESTAMP
                 WHERE submission_id = ?`,
                 [submissionId]
@@ -156,14 +148,12 @@ class VoteRankingController {
             }
 
             const submissionResult = await dbGet(
-                "SELECT id, judge_total_points FROM submission_results WHERE submission_id = ?",
+                "SELECT id, judge_total_points, secretary_points FROM submission_results WHERE submission_id = ?",
                 [submissionId]
             );
 
-            const judgeTotalPoints = submissionResult
-                ? Number(submissionResult.judge_total_points || 0)
-                : await getJudgeTotalPoints(submissionId);
-            const finalPoints = judgeTotalPoints + convertedPoints;
+            const finalPoints = calculateFinalPoints(submissionResult?.secretary_points, convertedPoints);
+            const legacyJudgeTotalPoints = Number(submissionResult?.judge_total_points || 0);
 
             if (submissionResult) {
                 await dbRun(
@@ -187,7 +177,7 @@ class VoteRankingController {
                     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
                     [
                         submissionId,
-                        judgeTotalPoints,
+                        0,
                         convertedPoints,
                         finalPoints
                     ]
@@ -203,7 +193,7 @@ class VoteRankingController {
                     submission_id: submissionId,
                     rank_position: rankPosition,
                     converted_points: convertedPoints,
-                    judge_total_points: judgeTotalPoints,
+                    judge_total_points: legacyJudgeTotalPoints,
                     final_points: finalPoints,
                 },
             });

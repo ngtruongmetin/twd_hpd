@@ -1,4 +1,5 @@
 const db = require("../utils/db");
+const { calculateFinalPoints } = require("../services/ScoreTotalService");
 
 function dbGet(sql, params = []) {
   return new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row))));
@@ -41,7 +42,7 @@ async function ensureSecretaryColumns() {
 }
 
 function canSeeSecretary(user) {
-  return ["TW_ADMIN", "JUDGE"].includes(user?.role_code);
+  return ["TECH_ADMIN", "TW_ADMIN", "JUDGE"].includes(user?.role_code);
 }
 
 function selectColumns(includeSecretary) {
@@ -82,29 +83,30 @@ class SubmissionResultController {
       const points = Number(rawPoints);
 
       if (!Number.isInteger(submissionId) || submissionId <= 0 || rawPoints === "" || !Number.isFinite(points) || points < 0) {
-        return res.status(400).json({ success: false, message: "Điểm tổ thư ký phải là số không âm hợp lệ" });
+        return res.status(400).json({ success: false, message: "Điểm ban giám khảo phải là số không âm hợp lệ" });
       }
-      if (!reason) return res.status(400).json({ success: false, message: "Vui lòng nhập lý do của tổ thư ký" });
+      if (!reason) return res.status(400).json({ success: false, message: "Vui lòng nhập lý do điểm ban giám khảo" });
 
       const submission = await dbGet("SELECT id FROM submissions WHERE id = ?", [submissionId]);
       if (!submission) return res.status(404).json({ success: false, message: "Không tìm thấy bài dự thi" });
 
-      const existing = await dbGet("SELECT id FROM submission_results WHERE submission_id = ?", [submissionId]);
+      const existing = await dbGet("SELECT id, vote_converted_points FROM submission_results WHERE submission_id = ?", [submissionId]);
       const userId = Number(req.session?.user?.id) || null;
+      const finalPoints = calculateFinalPoints(points, existing?.vote_converted_points);
       if (existing) {
         await dbRun(
-          "UPDATE submission_results SET secretary_points = ?, secretary_reason = ?, secretary_updated_at = CURRENT_TIMESTAMP, secretary_updated_by_user_id = ? WHERE id = ?",
-          [points, reason, userId, existing.id],
+          "UPDATE submission_results SET secretary_points = ?, secretary_reason = ?, final_points = ?, secretary_updated_at = CURRENT_TIMESTAMP, secretary_updated_by_user_id = ? WHERE id = ?",
+          [points, reason, finalPoints, userId, existing.id],
         );
       } else {
         await dbRun(
-          "INSERT INTO submission_results (submission_id, secretary_points, secretary_reason, secretary_updated_at, secretary_updated_by_user_id) VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)",
-          [submissionId, points, reason, userId],
+          "INSERT INTO submission_results (submission_id, secretary_points, secretary_reason, vote_converted_points, final_points, secretary_updated_at, secretary_updated_by_user_id) VALUES (?, ?, ?, 0, ?, CURRENT_TIMESTAMP, ?)",
+          [submissionId, points, reason, finalPoints, userId],
         );
       }
 
       const result = await dbGet(`SELECT ${selectColumns(true)} FROM submission_results WHERE submission_id = ?`, [submissionId]);
-      return res.status(existing ? 200 : 201).json({ success: true, message: "Đã lưu điểm tổ thư ký", data: result });
+      return res.status(existing ? 200 : 201).json({ success: true, message: "Đã lưu điểm ban giám khảo", data: result });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }

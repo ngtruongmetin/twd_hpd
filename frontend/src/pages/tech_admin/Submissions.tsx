@@ -25,6 +25,7 @@ type ResultRow = {
   submission_id: number
   vote_converted_points: number | string
   judge_total_points: number | string
+  secretary_points?: number | string | null
   final_points: number | string
 }
 
@@ -404,7 +405,7 @@ export default function TechAdminSubmissions() {
                 <th>Bài thi</th>
                 <th>Link Facebook</th>
                 <th>Điểm bình chọn</th>
-                <th>Điểm chấm hội đồng</th>
+                <th>Điểm ban giám khảo</th>
                 <th>
                   <button
                     type="button"
@@ -447,7 +448,7 @@ export default function TechAdminSubmissions() {
                       )}
                     </td>
                     <td>{toNumber(result?.vote_converted_points).toFixed(2)}</td>
-                    <td>{toNumber(result?.judge_total_points).toFixed(2)}</td>
+                    <td>{result?.secretary_points == null ? 'Chưa chấm' : toNumber(result.secretary_points).toFixed(2)}</td>
                     <td>
                       <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
                     </td>

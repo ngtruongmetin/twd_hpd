@@ -487,7 +487,7 @@ class ExportController {
             submissions.title,
             submissions.author_full_name,
             submissions.author_province_name,
-            submission_results.judge_total_points,
+            submission_results.secretary_points,
             submission_results.vote_converted_points,
             submission_results.final_points,
             submission_results.finalized_at
@@ -512,7 +512,7 @@ class ExportController {
                         { header: "Tiêu đề", key: "title", width: 30 },
                         { header: "Tác giả", key: "author_full_name", width: 25 },
                         { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
-                        { header: "Điểm chấm hội đồng", key: "judge_total_points", width: 18 },
+                        { header: "Điểm ban giám khảo", key: "secretary_points", width: 18 },
                         { header: "Điểm bình chọn", key: "vote_converted_points", width: 18 },
                         { header: "Tổng điểm", key: "final_points", width: 18 },
                         { header: "Ngày hoàn thiện", key: "finalized_at", width: 20 },

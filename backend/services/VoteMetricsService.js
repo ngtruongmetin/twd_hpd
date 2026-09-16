@@ -1,4 +1,5 @@
 const db = require("../utils/db");
+const { calculateFinalPoints, toScore } = require("./ScoreTotalService");
 
 function dbGet(sql, params = []) {
   return new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row))));
@@ -22,13 +23,12 @@ function calculateEngagementScore(interactionCount, shareCount) {
 }
 
 async function ensureSubmissionResult(submissionId, votePoints) {
-  const existing = await dbGet("SELECT id, judge_total_points FROM submission_results WHERE submission_id = ?", [submissionId]);
-  const judgeTotal = Number(existing?.judge_total_points || 0);
-  const finalPoints = judgeTotal + Number(votePoints || 0);
+  const existing = await dbGet("SELECT id, secretary_points FROM submission_results WHERE submission_id = ?", [submissionId]);
+  const finalPoints = calculateFinalPoints(existing?.secretary_points, votePoints);
   if (existing) {
     await dbRun(`UPDATE submission_results SET vote_converted_points = ?, final_points = ?, finalized_at = CURRENT_TIMESTAMP WHERE id = ?`, [votePoints, finalPoints, existing.id]);
   } else {
-    await dbRun(`INSERT INTO submission_results (submission_id, judge_total_points, vote_converted_points, final_points, finalized_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`, [submissionId, judgeTotal, votePoints, finalPoints]);
+    await dbRun(`INSERT INTO submission_results (submission_id, vote_converted_points, final_points, finalized_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, [submissionId, toScore(votePoints), finalPoints]);
   }
 }
 

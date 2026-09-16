@@ -37,7 +37,7 @@ class TechAdminController {
     judge_scores: { select: "SELECT * FROM judge_scores", table: "judge_scores", pk: "id" },
     vote_rankings: { select: "SELECT * FROM vote_rankings", table: "vote_rankings", pk: "id" },
     submission_results: {
-      select: "SELECT id, submission_id, judge_total_points, vote_converted_points, final_points, finalized_at FROM submission_results",
+      select: "SELECT id, submission_id, judge_total_points, vote_converted_points, secretary_points, secretary_reason, final_points, finalized_at FROM submission_results",
       table: "submission_results",
       pk: "id",
     },

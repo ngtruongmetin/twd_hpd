@@ -220,7 +220,7 @@ function ensureVoteMetricsTable() {
   });
 }
 
-function ensureSecretaryScoreColumns() {
+function ensureSecretaryScoreColumns(onReady) {
   db.all("PRAGMA table_info(submission_results)", [], (err, rows) => {
     if (err) {
       console.error("Failed to inspect submission_results table:", err.message);
@@ -235,8 +235,14 @@ function ensureSecretaryScoreColumns() {
       { name: "secretary_updated_by_user_id", definition: "secretary_updated_by_user_id INTEGER" },
     ];
     const missing = columns.filter((column) => !existing.has(column.name));
+    const finish = () => {
+      if (typeof onReady === "function") onReady();
+    };
     const addNext = (index) => {
-      if (index >= missing.length) return;
+      if (index >= missing.length) {
+        finish();
+        return;
+      }
       const column = missing[index];
       db.run(`ALTER TABLE submission_results ADD COLUMN ${column.definition}`, (alterErr) => {
         if (alterErr) console.error(`Failed to add ${column.name}:`, alterErr.message);
@@ -245,6 +251,16 @@ function ensureSecretaryScoreColumns() {
     };
     addNext(0);
   });
+}
+
+function backfillSecretaryBasedFinalPoints() {
+  db.run(
+    "UPDATE submission_results SET final_points = COALESCE(secretary_points, vote_converted_points, 0)",
+    (err) => {
+      if (err) console.error("Failed to backfill secretary-based final points:", err.message);
+      else console.log("Backfilled final points from secretary and vote scores");
+    },
+  );
 }
 
 function ensureVirtualSubmissionOwnerNullable() {
@@ -457,7 +473,7 @@ ensureUserAuthColumns();
 ensureSubmissionColumns();
 ensureComplaintTables();
 ensureVoteMetricsTable();
-ensureSecretaryScoreColumns();
+ensureSecretaryScoreColumns(backfillSecretaryBasedFinalPoints);
 ensureVirtualSubmissionOwnerNullable();
 ensureSubmissionTriggerCompatibility();
 

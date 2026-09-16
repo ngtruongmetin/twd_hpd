@@ -1,4 +1,5 @@
 const db = require("../utils/db");
+const { calculateFinalPoints } = require("../services/ScoreTotalService");
 
 function dbGet(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -29,12 +30,12 @@ function dbRun(sql, params = []) {
 
 async function ensureSubmissionResult(submissionId, judgeTotalPoints) {
   const row = await dbGet(
-    "SELECT id, vote_converted_points FROM submission_results WHERE submission_id = ?",
+    "SELECT id, vote_converted_points, secretary_points FROM submission_results WHERE submission_id = ?",
     [submissionId]
   );
 
   const voteConverted = Number(row?.vote_converted_points || 0);
-  const finalPoints = judgeTotalPoints + voteConverted;
+  const finalPoints = calculateFinalPoints(row?.secretary_points, voteConverted);
 
   if (row) {
     await dbRun(
