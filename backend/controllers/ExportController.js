@@ -351,33 +351,46 @@ class ExportController {
         ];
 
         const { where, params } = ExportController.buildFilterQuery(filter, allowedFields);
-        const query = `SELECT
-            submissions.id,
-            submissions.season_id,
-            submissions.competition_table_id,
-            submissions.submitted_by_user_id,
-            submissions.title,
-            submissions.description,
-            submissions.video_url,
-            submissions.note,
-            submissions.author_full_name,
-            submissions.author_province_name,
-            submissions.author_ward_name,
-            submissions.author_school_name,
-            submissions.other_members,
-            submissions.drive_file_id,
-            submissions.drive_is_public,
-            submissions.fb_url,
-            submissions.is_failed,
-            submissions.failed_reason,
-            submissions.status,
-            submissions.submitted_at,
-            submissions.updated_at,
-            COALESCE(m.interaction_count, 0) AS interaction_count,
-            COALESCE(m.share_count, 0) AS share_count
-        FROM submissions
-        LEFT JOIN submission_vote_metrics m ON m.submission_id = submissions.id${where}
-        ORDER BY datetime(submissions.submitted_at) ASC, submissions.id ASC`;
+        const query = `WITH ranked_submissions AS (
+            SELECT
+                submissions.id,
+                submissions.season_id,
+                submissions.competition_table_id,
+                competition_tables.name AS competition_table_name,
+                submissions.submitted_by_user_id,
+                submissions.title,
+                submissions.description,
+                submissions.video_url,
+                submissions.note,
+                submissions.author_full_name,
+                submissions.author_province_name,
+                submissions.author_ward_name,
+                submissions.author_school_name,
+                submissions.other_members,
+                submissions.drive_file_id,
+                submissions.drive_is_public,
+                submissions.fb_url,
+                submissions.is_failed,
+                submissions.failed_reason,
+                submissions.status,
+                submissions.submitted_at,
+                submissions.updated_at,
+                COALESCE(m.interaction_count, 0) AS interaction_count,
+                COALESCE(m.share_count, 0) AS share_count,
+                sr.secretary_points,
+                COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
+                COALESCE(sr.secretary_points, 0) + COALESCE(sr.vote_converted_points, 0) AS final_points,
+                RANK() OVER (
+                    PARTITION BY submissions.competition_table_id
+                    ORDER BY COALESCE(sr.secretary_points, 0) + COALESCE(sr.vote_converted_points, 0) DESC
+                ) AS table_rank
+            FROM submissions
+            LEFT JOIN submission_vote_metrics m ON m.submission_id = submissions.id
+            LEFT JOIN submission_results sr ON sr.submission_id = submissions.id
+            LEFT JOIN competition_tables ON competition_tables.id = submissions.competition_table_id
+        )
+        SELECT * FROM ranked_submissions${where}
+        ORDER BY competition_table_id ASC, table_rank ASC, id ASC`;
 
         db.all(query, params, (err, rows) => {
             if (err) {
@@ -392,6 +405,8 @@ class ExportController {
                 matrix: {
                     columns: [
                         { header: "STT", key: "stt", width: 8 },
+                        { header: "Bảng thi", key: "competition_table_name", width: 25 },
+                        { header: "Xếp hạng theo bảng", key: "table_rank", width: 18 },
                         { header: "Tiêu đề", key: "title", width: 35 },
                         { header: "Tác giả", key: "author_full_name", width: 25 },
                         { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
@@ -404,6 +419,9 @@ class ExportController {
                         { header: "Trạng thái", key: "status", width: 15 },
                         { header: "Lượt tương tác", key: "interaction_count", width: 18 },
                         { header: "Lượt share", key: "share_count", width: 15 },
+                        { header: "Điểm ban giám khảo", key: "secretary_points", width: 18 },
+                        { header: "Điểm bình chọn", key: "vote_converted_points", width: 18 },
+                        { header: "Tổng điểm", key: "final_points", width: 15 },
                     ],
                     rows: rows.map((row, index) => ({
                         ...row,
@@ -481,18 +499,29 @@ class ExportController {
         ];
 
         const { where, params } = ExportController.buildFilterQuery(filter, allowedFields);
-        const query = `SELECT
-            submission_results.id,
-            submission_results.submission_id,
-            submissions.title,
-            submissions.author_full_name,
-            submissions.author_province_name,
-            submission_results.secretary_points,
-            submission_results.vote_converted_points,
-            submission_results.final_points,
-            submission_results.finalized_at
-        FROM submission_results
-        LEFT JOIN submissions ON submissions.id = submission_results.submission_id${where}`;
+        const query = `WITH ranked_results AS (
+            SELECT
+                submission_results.id,
+                submission_results.submission_id,
+                submissions.competition_table_id,
+                competition_tables.name AS competition_table_name,
+                submissions.title,
+                submissions.author_full_name,
+                submissions.author_province_name,
+                submission_results.secretary_points,
+                submission_results.vote_converted_points,
+                COALESCE(submission_results.secretary_points, 0) + COALESCE(submission_results.vote_converted_points, 0) AS final_points,
+                submission_results.finalized_at,
+                RANK() OVER (
+                    PARTITION BY submissions.competition_table_id
+                    ORDER BY COALESCE(submission_results.secretary_points, 0) + COALESCE(submission_results.vote_converted_points, 0) DESC
+                ) AS table_rank
+            FROM submission_results
+            LEFT JOIN submissions ON submissions.id = submission_results.submission_id
+            LEFT JOIN competition_tables ON competition_tables.id = submissions.competition_table_id
+        )
+        SELECT * FROM ranked_results${where}
+        ORDER BY competition_table_id ASC, table_rank ASC, submission_id ASC`;
 
         db.all(query, params, (err, rows) => {
             if (err) {
@@ -509,6 +538,8 @@ class ExportController {
                         { header: "STT", key: "stt", width: 10 },
                         { header: "ID", key: "id", width: 10 },
                         { header: "Submission ID", key: "submission_id", width: 15 },
+                        { header: "Bảng thi", key: "competition_table_name", width: 25 },
+                        { header: "Xếp hạng theo bảng", key: "table_rank", width: 18 },
                         { header: "Tiêu đề", key: "title", width: 30 },
                         { header: "Tác giả", key: "author_full_name", width: 25 },
                         { header: "Tỉnh/Thành", key: "author_province_name", width: 20 },
