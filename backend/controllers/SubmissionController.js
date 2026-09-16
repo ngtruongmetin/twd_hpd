@@ -906,7 +906,7 @@ class SubmissionController {
                 params.push(pattern, pattern, pattern);
             }
             const whereSql = `WHERE ${where.join(' AND ')}`;
-            const sortColumns = { table: 'ct.name', author: 's.author_full_name', secretary: 'sr.secretary_points', vote: 'sr.vote_converted_points', council: 'sr.judge_total_points', total: 'sr.final_points' };
+            const sortColumns = { table: 'ct.name', author: 's.author_full_name', secretary: 'sr.secretary_points', vote: 'sr.vote_converted_points', council: 'sr.judge_total_points', total: '(COALESCE(sr.secretary_points, 0) + COALESCE(sr.vote_converted_points, 0))' };
             const sortColumn = sortColumns[req.query?.sort] || 's.id';
             const direction = String(req.query?.direction || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
             const judgeUserId = Number(req.session?.user?.id) || 0;
@@ -914,7 +914,7 @@ class SubmissionController {
                 COALESCE(m.share_count, 0) AS share_count, COALESCE(m.engagement_score, 0) AS engagement_score,
                 vr.rank_position AS vote_rank_position, COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
                 COALESCE(sr.judge_total_points, 0) AS judge_total_points, sr.secretary_points, sr.secretary_reason,
-                COALESCE(sr.final_points, 0) AS final_points,
+                COALESCE(sr.secretary_points, 0) + COALESCE(sr.vote_converted_points, 0) AS final_points,
                 CASE WHEN EXISTS (SELECT 1 FROM judge_scores current_js WHERE current_js.submission_id = s.id AND current_js.judge_user_id = ?) THEN 1 ELSE 0 END AS has_judge_scores
                 FROM submissions s LEFT JOIN submission_vote_metrics m ON m.submission_id = s.id
                 LEFT JOIN vote_rankings vr ON vr.submission_id = s.id LEFT JOIN submission_results sr ON sr.submission_id = s.id
@@ -937,7 +937,7 @@ class SubmissionController {
                        COALESCE(m.engagement_score, 0) AS engagement_score,
                        vr.rank_position AS vote_rank_position,
                        COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
-                       COALESCE(sr.final_points, 0) AS final_points
+                       COALESCE(sr.secretary_points, 0) + COALESCE(sr.vote_converted_points, 0) AS final_points
                 FROM submissions s
                 LEFT JOIN submission_vote_metrics m ON m.submission_id = s.id
                 LEFT JOIN vote_rankings vr ON vr.submission_id = s.id
@@ -964,7 +964,7 @@ class SubmissionController {
                        COALESCE(m.engagement_score, 0) AS engagement_score,
                        vr.rank_position AS vote_rank_position,
                        COALESCE(sr.vote_converted_points, 0) AS vote_converted_points,
-                       COALESCE(sr.final_points, 0) AS final_points
+                       COALESCE(sr.secretary_points, 0) + COALESCE(sr.vote_converted_points, 0) AS final_points
                 FROM submissions s
                 LEFT JOIN submission_vote_metrics m ON m.submission_id = s.id
                 LEFT JOIN vote_rankings vr ON vr.submission_id = s.id

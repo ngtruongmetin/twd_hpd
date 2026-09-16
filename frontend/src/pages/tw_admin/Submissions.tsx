@@ -90,6 +90,10 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(n) ? n : 0
 }
 
+function getFinalPoints(result: ResultRow | undefined) {
+  return toNumber(result?.secretary_points) + toNumber(result?.vote_converted_points)
+}
+
 function normalizeError(err: unknown, fallback: string) {
   if (axios.isAxiosError(err)) return err.response?.data?.message || fallback
   return fallback
@@ -512,8 +516,8 @@ export default function TwAdminSubmissions() {
         }
         case 'total':
           result = compareNumber(
-            toNumber(leftResult?.final_points),
-            toNumber(rightResult?.final_points),
+            getFinalPoints(leftResult),
+            getFinalPoints(rightResult),
             direction,
           )
           break
@@ -1152,7 +1156,7 @@ export default function TwAdminSubmissions() {
                       {result?.secretary_points == null ? 'Chưa chấm' : toNumber(result.secretary_points).toFixed(2)}
                     </td>
                     <td>
-                      <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
+                      <strong>{getFinalPoints(result).toFixed(2)}</strong>
                     </td>
                     <td>
                       <div className="vb-requirement-toggle">

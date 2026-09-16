@@ -49,7 +49,9 @@ function selectColumns(includeSecretary) {
   const secretary = includeSecretary
     ? ", secretary_points, secretary_reason, secretary_updated_at, secretary_updated_by_user_id"
     : "";
-  return `id, submission_id, judge_total_points, vote_converted_points, final_points, finalized_at${secretary}`;
+  return `id, submission_id, judge_total_points, vote_converted_points,
+    COALESCE(secretary_points, 0) + COALESCE(vote_converted_points, 0) AS final_points,
+    finalized_at${secretary}`;
 }
 
 class SubmissionResultController {

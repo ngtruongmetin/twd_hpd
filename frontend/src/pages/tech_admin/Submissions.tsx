@@ -36,6 +36,10 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(n) ? n : 0
 }
 
+function getFinalPoints(result: ResultRow | undefined) {
+  return toNumber(result?.secretary_points) + toNumber(result?.vote_converted_points)
+}
+
 function normalizeError(err: unknown, fallback: string) {
   if (axios.isAxiosError(err)) return err.response?.data?.message || fallback
   return fallback
@@ -164,8 +168,8 @@ export default function TechAdminSubmissions() {
     if (sortMode !== 'score-desc') return filteredRows
 
     return [...filteredRows].sort((left, right) => {
-      const leftScore = toNumber(resultBySubmissionId.get(left.id)?.final_points)
-      const rightScore = toNumber(resultBySubmissionId.get(right.id)?.final_points)
+      const leftScore = getFinalPoints(resultBySubmissionId.get(left.id))
+      const rightScore = getFinalPoints(resultBySubmissionId.get(right.id))
 
       return rightScore - leftScore || right.id - left.id
     })
@@ -450,7 +454,7 @@ export default function TechAdminSubmissions() {
                     <td>{toNumber(result?.vote_converted_points).toFixed(2)}</td>
                     <td>{result?.secretary_points == null ? 'Chưa chấm' : toNumber(result.secretary_points).toFixed(2)}</td>
                     <td>
-                      <strong>{toNumber(result?.final_points).toFixed(2)}</strong>
+                      <strong>{getFinalPoints(result).toFixed(2)}</strong>
                     </td>
                     <td>
                       <div className="vb-tw-row-actions">

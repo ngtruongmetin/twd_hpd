@@ -80,6 +80,10 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(n) ? n : 0
 }
 
+function getFinalPoints(result: SubmissionResultRow | undefined) {
+  return toNumber(result?.secretary_points) + toNumber(result?.vote_converted_points)
+}
+
 type SortKey = 'table' | 'author' | 'secretary' | 'vote' | 'council' | 'total'
 type SortDirection = 'asc' | 'desc' | 'time'
 
@@ -257,7 +261,7 @@ export default function JudgeSubmissions() {
           result = compareNumber(toNumber(leftResult?.judge_total_points), toNumber(rightResult?.judge_total_points), direction)
           break
         case 'total':
-          result = compareNumber(toNumber(leftResult?.final_points), toNumber(rightResult?.final_points), direction)
+          result = compareNumber(getFinalPoints(leftResult), getFinalPoints(rightResult), direction)
           break
       }
       return result || right.id - left.id
@@ -544,7 +548,7 @@ export default function JudgeSubmissions() {
 
                     <td>
                       <strong>
-                        {toNumber(result?.final_points).toFixed(2)}
+                        {getFinalPoints(result).toFixed(2)}
                       </strong>
                     </td>
                     <td>
