@@ -943,10 +943,14 @@ class SubmissionController {
                 LEFT JOIN vote_rankings vr ON vr.submission_id = s.id
                 LEFT JOIN submission_results sr ON sr.submission_id = s.id
                 ORDER BY s.id DESC`);
+            const isContestant = req.session?.user?.role_code === "CONTESTANT";
+            const data = isContestant
+                ? rows.map(({ video_url, fb_url, ...submission }) => submission)
+                : rows;
             return res.status(200).json({
                 success: true,
                 message: "Lấy danh sách bài thi thành công",
-                data: rows,
+                data,
             });
         } catch (error) {
             return res.status(500).json({
@@ -977,10 +981,13 @@ class SubmissionController {
                 });
             }
 
+            const data = req.session?.user?.role_code === "CONTESTANT"
+                ? (({ video_url, fb_url, ...submission }) => submission)(row)
+                : row;
             return res.status(200).json({
                 success: true,
                 message: "Lấy thông tin bài thi thành công",
-                data: row,
+                data,
             });
         } catch (error) {
             return res.status(500).json({

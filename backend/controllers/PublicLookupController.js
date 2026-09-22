@@ -357,8 +357,6 @@ class PublicLookupController {
                     ward_name: wardName,
                     title: row.title || "",
                     description: row.description || "",
-                    video_url: row.video_url || "",
-                    facebook_post_url: row.fb_url || "",
                     has_facebook_post: hasFacebookPost,
                     interaction_count: Number(row.interaction_count || 0),
                     share_count: Number(row.share_count || 0),

@@ -10,7 +10,6 @@ type ProfileDraft = {
   full_name: string
   email: string
   phone: string
-  facebook_post_url: string
   school_name: string
   work_unit: string
   organization_position: string
@@ -20,7 +19,6 @@ const emptyDraft: ProfileDraft = {
   full_name: '',
   email: '',
   phone: '',
-  facebook_post_url: '',
   school_name: '',
   work_unit: '',
   organization_position: '',
@@ -31,19 +29,9 @@ function createDraftFromUser(user: SessionUser | null): ProfileDraft {
     full_name: user?.full_name || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    facebook_post_url: user?.facebook_post_url || '',
     school_name: user?.school_name || '',
     work_unit: user?.work_unit || '',
     organization_position: user?.organization_position || '',
-  }
-}
-
-function isFacebookLink(value: string) {
-  try {
-    const url = new URL(value)
-    return /(^|\.)facebook\.com$/i.test(url.hostname)
-  } catch {
-    return false
   }
 }
 
@@ -67,7 +55,7 @@ export default function ContestantDashboard() {
       { label: 'Tỉnh/Thành phố', value: user?.province_name || 'Chưa bổ sung' },
       { label: 'Phường/Xã', value: user?.ward_name || 'Chưa bổ sung' },
     ],
-    [draft.facebook_post_url, user?.facebook_post_url, user?.email, user?.phone, user?.province_name, user?.role_code, user?.role_name, user?.school_name, user?.username, user?.ward_name],
+    [user?.email, user?.phone, user?.province_name, user?.role_code, user?.role_name, user?.school_name, user?.username, user?.ward_name],
   )
 
   const profileReady = Boolean(
@@ -86,7 +74,6 @@ export default function ContestantDashboard() {
         phone: draft.phone || null,
         work_unit: draft.work_unit || null,
         organization_position: draft.organization_position || null,
-        facebook_post_url: draft.facebook_post_url || null,
       })
 
       setUser(response.data?.data ?? null)
@@ -187,15 +174,6 @@ export default function ContestantDashboard() {
                 <input className="vb-input" placeholder=" " value={user?.ward_name || ''} disabled readOnly />
                 <label className="vb-float-label">Phường / Xã</label>
               </div>
-              <div className="vb-field vb-full">
-                <input
-                  className="vb-input"
-                  placeholder=" "
-                  value={draft.facebook_post_url}
-                  onChange={(e) => setDraft((current) => ({ ...current, facebook_post_url: e.target.value }))}
-                />
-                <label className="vb-float-label">Link bài đăng Facebook thẻ chiến sĩ HPĐ</label>
-              </div>
               <div className="vb-field">
                 <input
                   className="vb-input"
@@ -226,9 +204,8 @@ export default function ContestantDashboard() {
             </div>
 
             {message ? <p className="vb-form-success">{message}</p> : null}
-            {!isFacebookLink(draft.facebook_post_url.trim()) && draft.facebook_post_url.trim() ? (
               <p className="vb-form-error">Link Facebook chưa hợp lệ. Hãy dán đúng link bài đăng Facebook công khai.</p>
-            ) : null}
+            
 
             <div className="vb-modal-actions">
               <button type="button" className="vb-btn vb-btn-primary" onClick={handleSaveDraft} disabled={saving || !profileReady}>

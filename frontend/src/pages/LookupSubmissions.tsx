@@ -23,9 +23,9 @@ type LookupSubmission = {
   ward_name: string
   title: string
   description: string
-  video_url: string
-  facebook_post_url: string
   has_facebook_post: boolean
+  video_url?: string
+  facebook_post_url?: string
   status: string
   status_code: LookupStatusCode
   failed_reason: string
@@ -159,22 +159,6 @@ function renderHighlightedText(value: string | null | undefined, query: string, 
   }
 
   return fragments
-}
-
-function getFacebookDisplay(row: LookupSubmission) {
-  if (row.status_code === 'failed') {
-    return 'Không được đăng tải'
-  }
-
-  if (row.facebook_post_url) {
-    return (
-      <a className="vb-tw-btn-link" href={row.facebook_post_url} target="_blank" rel="noreferrer">
-        Xem bài đăng Facebook
-      </a>
-    )
-  }
-
-  return 'Đang chờ đăng tải'
 }
 
 function getEmptyMessage(submitted: boolean, hasAnyResult: boolean) {
@@ -428,8 +412,6 @@ export default function LookupSubmissions() {
                 <th>Phường/Xã</th>
                 <th>Tiêu đề</th>
                 <th>Mô tả</th>
-                <th>Link bài thi</th>
-                <th>Link bài đăng Facebook</th>
                 <th>Trạng thái bài thi</th>
                 <th>Lý do không đạt</th>
                 <th>Thời gian nộp bài</th>
@@ -451,15 +433,14 @@ export default function LookupSubmissions() {
                     <td>{renderHighlightedText(row.title, submittedQuery, hasMatchReason(row, 'title'))}</td>
                     <td>{displayValue(row.description)}</td>
                     <td>
-                      {row.video_url ? (
-                        <a className="vb-tw-btn-link" href={row.video_url} target="_blank" rel="noreferrer">
+                      {false ? (
+                        <a className="vb-tw-btn-link" href="#" target="_blank" rel="noreferrer">
                           Xem bài thi
                         </a>
                       ) : (
                         'Không có'
                       )}
                     </td>
-                    <td>{getFacebookDisplay(row)}</td>
                     <td>
                       <span className={`vb-lookup-status is-${getStatusTone(row.status_code)}`}>{row.status}</span>
                     </td>
@@ -473,7 +454,7 @@ export default function LookupSubmissions() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={16} className="vb-lookup-empty">
+                  <td colSpan={14} className="vb-lookup-empty">
                     {emptyMessage}
                   </td>
                 </tr>
@@ -513,22 +494,6 @@ export default function LookupSubmissions() {
                   <div>
                     <dt>Mô tả</dt>
                     <dd>{displayValue(row.description)}</dd>
-                  </div>
-                  <div>
-                    <dt>Link bài thi</dt>
-                    <dd>
-                      {row.video_url ? (
-                        <a className="vb-tw-btn-link" href={row.video_url} target="_blank" rel="noreferrer">
-                          Xem bài thi
-                        </a>
-                      ) : (
-                        'Không có'
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Link bài đăng Facebook</dt>
-                    <dd>{getFacebookDisplay(row)}</dd>
                   </div>
                   <div>
                     <dt>Trạng thái bài thi</dt>

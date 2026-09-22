@@ -647,8 +647,6 @@ export default function ContestantSubmissions() {
                                         <th>Bảng thi</th>
                                         <th>Tiêu đề</th>
                                         <th>Mô tả</th>
-                                        <th>Link bài thi</th>
-                                        <th>Bài đăng Facebook</th>
                                         <th>Trạng thái</th>
                                         <th>Lý do không đạt</th>
                                         <th>Khiếu nại điểm</th>
@@ -675,26 +673,6 @@ export default function ContestantSubmissions() {
                                                     </td>
                                                     <td>{submission.title}</td>
                                                     <td>{submission.description || 'Không có mô tả'}</td>
-                                                    <td>
-                                                        {submission.video_url ? (
-                                                            <a className="vb-tw-btn-link" href={submission.video_url} target="_blank" rel="noreferrer">
-                                                                Xem bài thi
-                                                            </a>
-                                                        ) : (
-                                                            'Không có'
-                                                        )}
-                                                    </td>
-                                                    <td>
-                                                        {submission.is_failed === 1 ? (
-                                                            'Không được đăng tải'
-                                                        ) : submission.fb_url ? (
-                                                            <a className="vb-tw-btn-link" href={submission.fb_url} target="_blank" rel="noreferrer">
-                                                                Xem bài đăng Facebook
-                                                            </a>
-                                                        ) : (
-                                                            'Đang chờ đăng tải'
-                                                        )}
-                                                    </td>
                                                     <td>
                                                         <span className={`vb-status-pill ${getStatusClass(statusLabel)}`}>
                                                             {statusLabel}
